@@ -1,0 +1,67 @@
+# ============================================================
+# Pipeline Configuration - Data Version 1
+# Low-resolution native images (32x32)
+# ============================================================
+
+version: "v1"
+
+paths:
+  # Root folder where raw data is stored
+  # Since this will be run in airflow container, we have mounted the data to opt/airflow, check the docker-compose-airflow.yaml for more details
+  raw_data_dir: "/opt/airflow/data/raw/dataset1"
+
+  # Output folders for processed data
+  processed_data_dir: "/opt/airflow/data/processed/v1"
+
+  # Output path for baseline statistics JSON
+  baseline_stats_path: "/opt/airflow/data/baseline_stats/v1_stats.json"
+
+  # Path to save the split manifest CSVs
+  split_manifest_dir: "/opt/airflow/data/processed/v1/manifests"
+
+# Expected class folder names inside raw_data_dir
+# For presplit datasets: these must exist inside both train/ and test/ subfolders
+# For flat datasets: these must exist directly inside raw_data_dir
+classes:
+  - "malignant"
+  - "benign"
+
+# Valid image extensions to accept
+valid_extensions:
+  - ".jpg"
+  - ".jpeg"
+  - ".png"
+
+# Preprocessing settings
+preprocessing:
+  # Target image size - keeping native 32x32, no upscaling
+  # Upscaling adds no real information and weakens the baseline failure argument
+  target_size: [64, 64]
+
+  # Whether to convert all images to RGB (handles grayscale edge cases)
+  convert_to_rgb: true
+
+# Dataset split ratios
+# ── IMPORTANT NOTE ON PRESPLIT DATASETS ──────────────────────────────────────
+# If your dataset already has train/ and test/ folders (like dataset1),
+# the pipeline detects this automatically (presplit mode) and:
+#   - test ratio below is IGNORED — existing test folder is used as-is
+#   - val is carved from train only: val / (train + val) = 0.15/0.85 ≈ 17.6%
+#   - train ratio below controls only the train/val proportion
+# If your dataset is flat (just malignant/ and benign/ at root),
+# all three ratios below are used for a full 70/15/15 split.
+# ─────────────────────────────────────────────────────────────────────────────
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15        # ignored in presplit mode, kept for flat dataset compatibility
+  stratified: true
+  random_seed: 42   # fixed seed ensures identical split on every run
+
+# Validation thresholds
+validation:
+  # Minimum number of images required per class to proceed
+  min_images_per_class: 50
+
+  # Maximum allowed percentage of corrupt/invalid images before pipeline fails
+  max_corrupt_pct: 0.05

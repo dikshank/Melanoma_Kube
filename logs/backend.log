@@ -1,0 +1,351 @@
+2026-09-26 09:08:08 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:08:09 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:08:09 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:08:09 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:08:09 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:08:09 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:08:09 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:08:09 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:08:31 [ERROR] main: ❌ Model failed to re-load at /ready
+2026-09-26 09:09:01 [ERROR] main: ❌ Model failed to re-load at /ready
+2026-09-26 09:09:43 [ERROR] main: ❌ Model failed to re-load at /ready
+2026-09-26 09:10:43 [ERROR] main: ❌ Model failed to re-load at /ready
+2026-09-26 09:10:51 [INFO] main: FastAPI shutting down
+2026-09-26 09:11:00 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:11:01 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:11:01 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:11:01 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:11:01 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:11:01 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:11:01 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:11:01 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:11:06 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:11:06 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:11:06 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:11:06 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:11:06 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:11:06 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:11:06 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:11:06 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:11:36 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 09:11:36 [ERROR] main: Unexpected error in /predict: local variable '_latency_sum' referenced before assignment
+2026-09-26 09:12:23 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 09:12:23 [ERROR] main: Unexpected error in /predict: local variable '_latency_sum' referenced before assignment
+2026-09-26 09:13:52 [INFO] main: FastAPI shutting down
+2026-09-26 09:14:07 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:14:07 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:14:07 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:14:08 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:14:08 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:14:08 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:14:08 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:14:08 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:14:51 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 09:14:51 [ERROR] main: Unexpected error in /predict: local variable '_latency_sum' referenced before assignment
+2026-09-26 09:14:52 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 09:14:52 [ERROR] main: Unexpected error in /predict: local variable '_latency_sum' referenced before assignment
+2026-09-26 09:15:40 [INFO] main: FastAPI shutting down
+2026-09-26 09:16:17 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:16:17 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:16:17 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:16:17 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:16:17 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:16:17 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:16:17 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:16:17 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:16:17 [INFO] main: FastAPI shutting down
+2026-09-26 09:16:30 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:16:30 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:16:30 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:16:30 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:16:30 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:16:30 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:16:30 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:16:30 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:16:41 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:16:42 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:16:42 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:16:42 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:16:42 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:16:42 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:16:42 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:16:42 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:16:54 [INFO] main: FastAPI shutting down
+2026-09-26 09:17:07 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:17:07 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:17:07 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:17:07 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:17:07 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:17:07 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:17:07 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:17:07 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:17:19 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:17:19 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:17:19 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:17:19 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:17:19 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:17:19 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:17:19 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:17:19 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:17:28 [INFO] main: FastAPI shutting down
+2026-09-26 09:17:37 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:17:37 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:17:37 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:17:37 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:17:37 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:17:37 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:17:37 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:17:37 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:17:44 [INFO] main: FastAPI shutting down
+2026-09-26 09:17:51 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:17:51 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:17:51 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:17:51 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:17:51 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:17:51 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:17:51 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:17:51 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:18:16 [INFO] main: FastAPI shutting down
+2026-09-26 09:18:25 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:18:25 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:18:25 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:18:25 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:18:26 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:18:26 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:18:26 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:18:26 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:18:31 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:18:31 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:18:31 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:18:31 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:18:31 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:18:31 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:18:31 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:18:31 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:18:37 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:18:37 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:18:37 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:18:37 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:18:37 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:18:37 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:18:37 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:18:37 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:18:44 [INFO] main: FastAPI shutting down
+2026-09-26 09:18:50 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:18:51 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:18:51 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:18:51 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:18:51 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:18:51 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:18:51 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:18:51 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:18:54 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:18:55 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:18:55 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:18:55 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:18:55 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:18:55 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:18:55 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:18:55 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:19:13 [INFO] main: FastAPI shutting down
+2026-09-26 09:19:21 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:19:21 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:19:21 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:19:21 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:19:21 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:19:21 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:19:21 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:19:21 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:19:26 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:19:26 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:19:26 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:19:26 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:19:26 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:19:26 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:19:26 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:19:26 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:20:47 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 09:20:47 [INFO] main: Prediction | image_id=img_72130a93_1790414447.jpg | label=malignant | latency=0.235s | drift=0.0822
+2026-09-26 09:22:50 [INFO] main: FastAPI shutting down
+2026-09-26 09:22:58 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:22:58 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:22:58 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:22:58 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:22:58 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:22:58 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:22:58 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:22:58 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:23:04 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:23:04 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:23:04 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:23:04 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:23:04 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:23:04 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:23:04 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:23:04 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:23:10 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:23:10 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:23:10 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:23:10 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:23:10 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:23:10 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:23:10 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:23:10 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:24:58 [INFO] main: FastAPI shutting down
+2026-09-26 09:25:17 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:25:17 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:25:17 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:25:17 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:25:17 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:25:17 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:25:17 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:25:17 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:25:58 [INFO] main: FastAPI shutting down
+2026-09-26 09:26:25 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:26:25 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:26:25 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:26:25 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:26:25 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:26:25 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:26:25 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:26:25 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:28:36 [INFO] main: FastAPI shutting down
+2026-09-26 09:29:05 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:29:06 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:29:06 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:29:06 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:29:06 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:29:06 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:29:06 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:29:06 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:30:48 [INFO] predictor: Prediction: label=malignant | confidence=0.7251 | malignant_prob=0.7251 | threshold=0.1000
+2026-09-26 09:30:48 [INFO] main: Prediction | image_id=img_34d7e8bc_1790415048.jpg | label=malignant | latency=0.681s | drift=0.0720
+2026-09-26 09:33:40 [INFO] main: FastAPI shutting down
+2026-09-26 09:34:04 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:34:04 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:34:04 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:34:04 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:34:04 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:34:04 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:34:04 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:34:04 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:38:41 [INFO] main: FastAPI shutting down
+2026-09-26 09:39:16 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:39:16 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:39:16 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:39:16 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:39:16 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:39:16 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:39:16 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:39:16 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:52:54 [INFO] main: FastAPI shutting down
+2026-09-26 09:53:18 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:53:19 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:53:19 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:53:19 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:53:19 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:53:19 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:53:19 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:53:19 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 09:53:55 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 09:53:55 [INFO] main: Prediction | image_id=img_72130a93_1790416435.jpg | label=malignant | latency=0.464s | drift=0.0822
+2026-09-26 09:57:04 [INFO] predictor: Prediction: label=malignant | confidence=0.6191 | malignant_prob=0.6191 | threshold=0.1000
+2026-09-26 09:57:04 [INFO] main: Prediction | image_id=img_469104c5_1790416623.jpg | label=malignant | latency=0.951s | drift=0.0610
+2026-09-26 09:57:05 [INFO] predictor: Prediction: label=malignant | confidence=0.6810 | malignant_prob=0.6810 | threshold=0.1000
+2026-09-26 09:57:05 [INFO] main: Prediction | image_id=img_dd4e54fa_1790416624.jpg | label=malignant | latency=0.293s | drift=0.0424
+2026-09-26 09:58:27 [INFO] main: FastAPI shutting down
+2026-09-26 09:59:18 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 09:59:18 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 09:59:18 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 09:59:18 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 09:59:18 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 09:59:18 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 09:59:18 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 09:59:18 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 10:00:48 [INFO] main: FastAPI shutting down
+2026-09-26 10:01:24 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 10:01:24 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 10:01:24 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 10:01:24 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 10:01:24 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 10:01:24 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 10:01:24 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 10:01:24 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 10:01:49 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 10:01:49 [INFO] main: Prediction | image_id=img_72130a93_1790416909.jpg | label=malignant | latency=0.199s | drift=0.0822
+2026-09-26 10:04:42 [INFO] main: FastAPI shutting down
+2026-09-26 10:05:18 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 10:05:19 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 10:05:19 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 10:05:19 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 10:05:19 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 10:05:19 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 10:05:19 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 10:05:19 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 10:05:28 [INFO] predictor: Prediction: label=malignant | confidence=0.5384 | malignant_prob=0.5384 | threshold=0.1000
+2026-09-26 10:05:28 [INFO] main: Prediction | image_id=img_105192aa_1790417127.jpg | label=malignant | latency=0.468s | drift=0.0319
+2026-09-26 10:07:08 [INFO] predictor: Prediction: label=malignant | confidence=0.6810 | malignant_prob=0.6810 | threshold=0.1000
+2026-09-26 10:07:08 [INFO] main: Prediction | image_id=img_dd4e54fa_1790417227.jpg | label=malignant | latency=0.331s | drift=0.0424
+2026-09-26 10:07:25 [INFO] main: Image moved to feedback_data/benign/img_dd4e54fa_1790417227.jpg
+2026-09-26 10:07:25 [INFO] main: Feedback | image=img_dd4e54fa_1790417227.jpg | predicted=malignant | actual=benign | total_feedback=1 | misclassification_rate=1.0000
+2026-09-26 10:08:46 [INFO] predictor: Prediction: label=malignant | confidence=0.6286 | malignant_prob=0.6286 | threshold=0.1000
+2026-09-26 10:08:46 [INFO] main: Prediction | image_id=img_d32128ee_1790417326.jpg | label=malignant | latency=0.092s | drift=0.0524
+2026-09-26 10:13:24 [INFO] main: FastAPI shutting down
+2026-09-26 10:14:06 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 10:14:06 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 10:14:06 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 10:14:06 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 10:14:06 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 10:14:06 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 10:14:06 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 10:14:06 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 10:15:23 [INFO] predictor: Prediction: label=malignant | confidence=0.6011 | malignant_prob=0.6011 | threshold=0.1000
+2026-09-26 10:15:23 [INFO] main: Prediction | image_id=img_9aea8eb0_1790417723.jpg | label=malignant | latency=0.586s | drift=0.0836
+2026-09-26 10:18:32 [INFO] main: FastAPI shutting down
+2026-09-26 10:19:21 [INFO] main: FastAPI starting up — loading Production model...
+2026-09-26 10:19:23 [INFO] model_loader: Found model (location 1): /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+2026-09-26 10:19:23 [INFO] model_loader: Loading model from local path: /mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model (version 1)
+2026-09-26 10:19:23 [INFO] model_loader: Threshold from file: 0.1000
+2026-09-26 10:19:23 [INFO] model_loader: Model name from file: simple_cnn
+2026-09-26 10:19:23 [INFO] model_loader: ✅ Model loaded | version=1 | threshold=0.1000 | run_id=36feaf0661094be5b1489c5e3f60dd9f
+2026-09-26 10:19:23 [INFO] main: ✅ Model loaded successfully at startup
+2026-09-26 10:19:23 [INFO] main: Baseline histogram loaded (10 bins)
+2026-09-26 10:19:33 [INFO] predictor: Prediction: label=malignant | confidence=0.6775 | malignant_prob=0.6775 | threshold=0.1000
+2026-09-26 10:19:33 [INFO] main: Prediction | image_id=img_18da4e71_1790417973.jpg | label=malignant | latency=0.235s | drift=0.0596
+2026-09-26 10:20:27 [INFO] predictor: Prediction: label=malignant | confidence=0.5384 | malignant_prob=0.5384 | threshold=0.1000
+2026-09-26 10:20:27 [INFO] main: Prediction | image_id=img_105192aa_1790418027.jpg | label=malignant | latency=0.028s | drift=0.0319
+2026-09-26 10:21:15 [INFO] predictor: Prediction: label=malignant | confidence=0.6045 | malignant_prob=0.6045 | threshold=0.1000
+2026-09-26 10:21:16 [INFO] main: Prediction | image_id=img_73c0ba6a_1790418075.jpg | label=malignant | latency=0.038s | drift=0.0563
+2026-09-26 10:22:57 [INFO] main: Image moved to feedback_data/malignant/img_73c0ba6a_1790418075.jpg
+2026-09-26 10:22:57 [INFO] main: Feedback | image=img_73c0ba6a_1790418075.jpg | predicted=malignant | actual=malignant | total_feedback=1 | misclassification_rate=0.0000
+2026-09-26 10:24:15 [INFO] predictor: Prediction: label=malignant | confidence=0.7113 | malignant_prob=0.7113 | threshold=0.1000
+2026-09-26 10:24:15 [INFO] main: Prediction | image_id=img_72130a93_1790418255.jpg | label=malignant | latency=0.122s | drift=0.0822
+2026-09-26 10:26:19 [INFO] predictor: Prediction: label=malignant | confidence=0.6286 | malignant_prob=0.6286 | threshold=0.1000
+2026-09-26 10:26:19 [INFO] main: Prediction | image_id=img_d32128ee_1790418379.jpg | label=malignant | latency=0.186s | drift=0.0524
+2026-09-26 10:28:37 [INFO] predictor: Prediction: label=malignant | confidence=0.6563 | malignant_prob=0.6563 | threshold=0.1000
+2026-09-26 10:28:37 [INFO] main: Prediction | image_id=img_3af7e3a5_1790418517.jpg | label=malignant | latency=0.220s | drift=0.0717
+2026-09-26 10:29:09 [INFO] predictor: Prediction: label=malignant | confidence=0.6191 | malignant_prob=0.6191 | threshold=0.1000
+2026-09-26 10:29:10 [INFO] main: Prediction | image_id=img_469104c5_1790418549.jpg | label=malignant | latency=0.123s | drift=0.0610
+2026-09-26 10:30:26 [INFO] predictor: Prediction: label=malignant | confidence=0.6810 | malignant_prob=0.6810 | threshold=0.1000
+2026-09-26 10:30:27 [INFO] main: Prediction | image_id=img_dd4e54fa_1790418626.jpg | label=malignant | latency=0.770s | drift=0.0424
+2026-09-26 10:30:53 [INFO] predictor: Prediction: label=malignant | confidence=0.6810 | malignant_prob=0.6810 | threshold=0.1000
+2026-09-26 10:30:53 [INFO] main: Prediction | image_id=img_dd4e54fa_1790418653.jpg | label=malignant | latency=0.179s | drift=0.0424
+2026-09-26 10:32:18 [INFO] predictor: Prediction: label=malignant | confidence=0.6810 | malignant_prob=0.6810 | threshold=0.1000
+2026-09-26 10:32:18 [INFO] main: Prediction | image_id=img_dd4e54fa_1790418738.jpg | label=malignant | latency=0.261s | drift=0.0424
+2026-09-26 10:37:44 [INFO] predictor: Prediction: label=malignant | confidence=0.6645 | malignant_prob=0.6645 | threshold=0.1000
+2026-09-26 10:37:44 [INFO] main: Prediction | image_id=img_3600614d_1790419064.jpg | label=malignant | latency=0.438s | drift=0.0520
+2026-09-26 10:46:32 [INFO] predictor: Prediction: label=malignant | confidence=0.6703 | malignant_prob=0.6703 | threshold=0.1000
+2026-09-26 10:46:32 [INFO] main: Prediction | image_id=img_f42d7b98_1790419592.jpg | label=malignant | latency=0.161s | drift=0.1224
+2026-09-26 11:15:48 [INFO] predictor: Prediction: label=malignant | confidence=0.6617 | malignant_prob=0.6617 | threshold=0.1000
+2026-09-26 11:15:48 [INFO] main: Prediction | image_id=img_427148aa_1790421347.jpg | label=malignant | latency=0.680s | drift=0.0748
+2026-09-26 11:18:10 [INFO] predictor: Prediction: label=malignant | confidence=0.6381 | malignant_prob=0.6381 | threshold=0.1000
+2026-09-26 11:18:11 [INFO] main: Prediction | image_id=img_98a020b2_1790421489.jpg | label=malignant | latency=1.392s | drift=0.1036
+2026-09-26 11:24:26 [INFO] predictor: Prediction: label=malignant | confidence=0.6474 | malignant_prob=0.6474 | threshold=0.1000
+2026-09-26 11:24:27 [INFO] main: Prediction | image_id=img_9773471d_1790421866.jpg | label=malignant | latency=1.272s | drift=0.1908
+2026-09-26 11:25:21 [INFO] predictor: Prediction: label=malignant | confidence=0.1463 | malignant_prob=0.1463 | threshold=0.1000
+2026-09-26 11:25:21 [INFO] main: Prediction | image_id=img_51c1057f_1790421920.jpg | label=malignant | latency=0.047s | drift=0.0346
+2026-09-26 11:26:01 [INFO] predictor: Prediction: label=benign | confidence=0.9636 | malignant_prob=0.0364 | threshold=0.1000
+2026-09-26 11:26:01 [INFO] main: Prediction | image_id=img_839ed6aa_1790421961.jpg | label=benign | latency=0.057s | drift=0.0834
+2026-09-26 11:27:49 [INFO] predictor: Prediction: label=malignant | confidence=0.6627 | malignant_prob=0.6627 | threshold=0.1000
+2026-09-26 11:27:50 [INFO] main: Prediction | image_id=img_22ff571d_1790422069.jpg | label=malignant | latency=0.558s | drift=0.0575
+2026-09-26 11:29:08 [INFO] main: FastAPI shutting down

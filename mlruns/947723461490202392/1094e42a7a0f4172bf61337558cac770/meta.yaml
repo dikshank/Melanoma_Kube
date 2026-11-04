@@ -1,0 +1,15 @@
+artifact_uri: /opt/airflow/mlruns/947723461490202392/1094e42a7a0f4172bf61337558cac770/artifacts
+end_time: 1790337080898
+entry_point_name: ''
+experiment_id: '947723461490202392'
+lifecycle_stage: active
+run_id: 1094e42a7a0f4172bf61337558cac770
+run_name: simplecnn-baseline
+run_uuid: 1094e42a7a0f4172bf61337558cac770
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1790337079857
+status: 4
+tags: []
+user_id: airflow

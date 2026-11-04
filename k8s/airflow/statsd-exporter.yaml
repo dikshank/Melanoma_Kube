@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: statsd-exporter
+  namespace: melanoma-production
+  labels:
+    app: statsd-exporter
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: statsd-exporter
+  template:
+    metadata:
+      labels:
+        app: statsd-exporter
+    spec:
+      containers: 
+        - name: statsd-exporter
+          image: prom/statsd-exporter:v0.23.0
+          args:
+            - "--statsd.listen-udp=:8125"
+            - "--statsd.listen-tcp=:9102"
+          ports:
+            - containerPort: 8125
+              protocol: UDP
+            - containerPort: 9102
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9102
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: statsd-exporter-service
+  namespace: melanoma-production
+  labels:
+    app: statsd-exporter
+spec:
+  selector:
+    app: statsd-exporter
+  ports:
+    - name: statsd
+      port: 8125
+      protocol: UDP
+      targetPort: 8125
+    - name: metrics
+      port: 9102
+      targetPort: 9102
+            

@@ -1,0 +1,30 @@
+# ============================================================
+# Prometheus Configuration
+# Phase 4 | Executed: Local (prometheus Docker container)
+#
+# Scrapes metrics from:
+#   1. FastAPI backend (/metrics endpoint)
+#   2. Airflow webserver (built-in metrics endpoint)
+# ============================================================
+
+global:
+  scrape_interval: 15s        # scrape every 15 seconds
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # Hit the StatsD where Airflow is sending the metrices, note that airflow does not have the dediecate prometheus endpoint that is why have to route our metrices to statsD container which infact has a prometheus endpoint on port 9102 
+  - job_name: "airflow"
+    static_configs:
+      - targets: ["statsd-exporter:9102"]   # This works because prometheus containers must be on the same network as stasD, if we are not on the same network then we have to route this via the host [host.docker.internal:9102] 
+    metrics_path: /metrics   
+
+  # ── Prometheus self-monitoring ──────────────────────────────────────────
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+
+
+
+# airflow_ti_start in prometheus query to see total run tasks (I think)

@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-schedular
+  namespace: melanoma-production
+  labels:
+    app: airflow-schedular
+
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+    selector:
+      matchLabels:
+        app: airflow-schedular
+
+  template:
+    metadata:
+      labels:
+        app: airflow-schedular
+
+    spec:
+      volume:
+        - name: data-vol
+          persistentVolumeClaim:
+            claimName: data-pvc
+        - name: logs-vol
+          persistentVolumeClaim:
+            claimName: logs-pvc
+        - name: mlruns-vol
+          persistentVolumeClaim:
+            claimName: mlruns-pvc
+
+      containers:
+        - name: airflow-schedular
+          image: airflow-image:v1
+          imagePullPolicy: IfNotPresent
+          args: ["scheduler"] # image entry point turns this into airflow scheduler
+          envFrom:
+            - configMapRef:
+                name: airflow-config
+            - secretRef:
+                name: airflow-secret
+          ports:
+            - containerPort: 8793
+            - containerPort: 8794
+          volumeMounts:
+            - name: data-vol
+              mountPath: /opt/airflow/data
+            - name: logs-vol
+              mountPath: /opt/airflow/logs
+            - name: mlruns-vol
+              mountPath: /opt/airflow/mlruns
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8794
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8794
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"

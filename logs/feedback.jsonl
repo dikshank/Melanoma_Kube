@@ -1,0 +1,2 @@
+{"image_id": "img_dd4e54fa_1790417227.jpg", "predicted_label": "malignant", "true_label": "benign", "image_saved_to": null, "feedback_counts": {"tp": 0, "fp": 1, "fn": 0, "tn": 0}, "total_feedback": 1}
+{"image_id": "img_73c0ba6a_1790418075.jpg", "predicted_label": "malignant", "true_label": "malignant", "image_saved_to": null, "feedback_counts": {"tp": 1, "fp": 0, "fn": 0, "tn": 0}, "total_feedback": 1}

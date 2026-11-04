@@ -1,0 +1,23 @@
+# ============================================================
+# Grafana Dashboard Provisioning
+# Phase 4 | Tells Grafana where to find dashboard JSON files
+# ============================================================
+
+apiVersion: 1  # This tells Grafana which provisioning configuration format/version this YAML uses.
+
+providers:   # Here are the dashboard providers I want Grafana to configure, there can be multiple providers but each provider will have a different path for their own dashboard
+  - name: "melanoma"   
+    orgId: 1
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards/melanoma_dashboards
+
+  - name: "airflow_dashboard"
+    orgID: 1 
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards/airflow_dashboards

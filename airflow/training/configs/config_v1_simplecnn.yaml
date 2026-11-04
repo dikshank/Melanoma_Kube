@@ -1,0 +1,46 @@
+# ============================================================
+# Training Configuration - Data v1 | SimpleCNN
+# Baseline experiment: proves low-res approach fails
+# Custom CNN trained from scratch — no pretrained weights
+# ============================================================
+
+mlflow:
+  tracking_uri: "./mlruns"
+  experiment_name: "baseline-v1"
+  run_name: "simplecnn-baseline"
+  experiment_type: "baseline"
+
+model:
+  name: "simple_cnn"
+  img_size: 64
+
+  # Not applicable for simple_cnn (no pretrained weights)
+  # Kept for config consistency
+  freeze_base: false
+  unfreeze_epoch: 999
+  num_layers_to_unfreeze: 0
+
+data:
+  version: "v1"
+  manifest_dir: "data/processed/v1/manifests"
+  baseline_stats_path: "data/baseline_stats/v1_stats.json"
+
+training:
+  epochs: 5
+  batch_size: 16
+  lr_head: 0.001
+  lr_finetune: 0.0001
+  weight_decay: 0.0001
+  class_weights: [1.0, 2.0]
+  early_stopping_patience: 3
+
+output:
+  checkpoint_dir: "training/models/v1"
+  artifacts_dir: "training/artifacts/v1_simplecnn"
+
+# ── Debug mode ────────────────────────────────────────────────────────────────
+debug:
+  enabled: false
+  num_images: 20
+  epochs: 2
+  batch_size: 4

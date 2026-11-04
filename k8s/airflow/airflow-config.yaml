@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+  namespace: melanoma-production
+data:
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_FOLDER: "/opt/airflow/dags"
+  AIRFLOW__CORE__HOSTNAME_CALLABLE: "airflow.utils.net.get_host_ip_address"
+  AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+  AIRFLOW__WEBSERVER__WORKERS: "2"
+  AIRFLOW__SCHEDULAR__ENABLE_HEALTH_CHECK: "true"  # gives schedular an endpoint /health on 8974 to check if it's healthy or not. This is important because it allows other services to know if the schedular is healthy or not.
+  AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: "30"
+  AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC: "30"
+  AIRFLOW__METRICES__STATSD_ON: "true"
+  AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"   # servive name of statsd-exporter'
+  AIRFLOW__METRICS__STATSD_PORT: "8125"
+  AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
+  PYTHONPATH: "/opt/airflow/data_pipeline"

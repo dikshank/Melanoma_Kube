@@ -1,0 +1,258 @@
+{
+  "title": "Airflow — Pipeline Monitoring",
+  "uid": "airflow-dashboard",
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Scheduler Heartbeat",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "airflow_scheduler_heartbeat",
+          "legendFormat": "Scheduler Heartbeat"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Running Tasks",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "airflow_executor_running_tasks",
+          "legendFormat": "Running Tasks"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Queued Tasks",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "airflow_executor_queued_tasks",
+          "legendFormat": "Queued Tasks"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Open Executor Slots",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "airflow_executor_open_slots",
+          "legendFormat": "Open Slots"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "DAG Import Errors",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "airflow_dag_processing_import_errors",
+          "legendFormat": "Import Errors"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            {
+              "color": "green",
+              "value": null
+            },
+            {
+              "color": "red",
+              "value": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "DAG Bag Size",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "airflow_dagbag_size",
+          "legendFormat": "DAGs"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Executor Status",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "airflow_executor_running_tasks",
+          "legendFormat": "Running"
+        },
+        {
+          "expr": "airflow_executor_queued_tasks",
+          "legendFormat": "Queued"
+        },
+        {
+          "expr": "airflow_executor_open_slots",
+          "legendFormat": "Open Slots"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Tasks Started",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "airflow_ti_start",
+          "legendFormat": "Tasks Started"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Tasks Succeeded",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "airflow_ti_successes",
+          "legendFormat": "Tasks Succeeded"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Task Starts by Task",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "expr": "airflow_ti_start_melanoma_data_pipeline_validate_images",
+          "legendFormat": "validate_images"
+        },
+        {
+          "expr": "airflow_ti_start_melanoma_data_pipeline_split_dataset",
+          "legendFormat": "split_dataset"
+        },
+        {
+          "expr": "airflow_ti_start_melanoma_data_pipeline_preprocess_images",
+          "legendFormat": "preprocess_images"
+        },
+        {
+          "expr": "airflow_ti_start_melanoma_data_pipeline_compute_baseline_stats",
+          "legendFormat": "compute_baseline_stats"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Task Successes by Task",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "expr": "airflow_ti_successes_melanoma_data_pipeline_validate_images",
+          "legendFormat": "validate_images"
+        },
+        {
+          "expr": "airflow_ti_successes_melanoma_data_pipeline_split_dataset",
+          "legendFormat": "split_dataset"
+        },
+        {
+          "expr": "airflow_ti_successes_melanoma_data_pipeline_preprocess_images",
+          "legendFormat": "preprocess_images"
+        },
+        {
+          "expr": "airflow_ti_successes_melanoma_data_pipeline_compute_baseline_stats",
+          "legendFormat": "compute_baseline_stats"
+        }
+      ]
+    }
+  ]
+}

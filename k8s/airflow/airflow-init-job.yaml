@@ -1,0 +1,57 @@
+# The job creates a one-time pod from it's template. The kubernetes schedular places it on the node, and the kubelet starts the container from airflow-image:v1.
+# The pod gets it's settings, envFrom loads every key from the configMap and the secret as env vars. The most important one is AIRFLOW__DATABASE__SQL_ALCHEMY_CONN = 'The database is at host postgres, port 5432', user airflow', Here postgres is the service name -> CoreDNS turns it into service's ClusterIP -> kube-proxy sends it to the postgres pod. 
+
+# the image's entrypoint runs first, The official Airflow image has its own entrypoint script. Before running your command the entrypoint checks that it can reach the database, and waits a little and retries if it can't. Then it runs the args with bash.
+
+
+
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: airflow-init
+  namespace: melanoma-production
+  labels:
+    app: airflow-init
+
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app: airflow-init
+
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: airflow-init
+          image: airflow-image:v1
+          imagePullPolicy: IfNotPresent
+          args:
+            - "bash"    # The program to run (a shall)
+            - "-c"      # bash's flag meaning "run the next text as script"
+            - |         # means multiline string
+              set -e    
+              airflow db migrate
+              airflow users create \
+                --username admin \
+                --password "$AIRFLOW_ADMIN_PASSWORD" \
+                --firstname Admin \
+                --lastname MLOps \
+                --role Admin \
+                --email admin@melanoma.local || echo "admin user already exists"
+
+            # set -e : if any command fails stop the script with an error
+            # airflow db migrate : create or upgrade Airflow's table in postgres
+            # airflow user create : create a user
+            # --email admin@melanoma.local || echo "admin user already exists": a || b is more like if a failed the run b
+
+
+
+          envFrom:
+            - configMapRef:
+                name: airflow-config
+            - secretRef:
+                name: airflow-secret
+
+# After running airflow init job, the Airflows tables in postgres: dag, dag_run, task_instance, job, xcom, the user table and the rest.

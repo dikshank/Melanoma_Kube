@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1790337427591
+current_stage: Production
+description: null
+last_updated_timestamp: 1790337427963
+name: melanoma_classifier
+run_id: 36feaf0661094be5b1489c5e3f60dd9f
+run_link: null
+source: /opt/airflow/mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+status: READY
+status_message: null
+storage_location: /opt/airflow/mlruns/947723461490202392/36feaf0661094be5b1489c5e3f60dd9f/artifacts/pytorch_model
+user_id: null
+version: 1

@@ -1,0 +1,151 @@
+# A Deployment says "I want N copies of this pod, always" and keeps fixing any difference (desired state)
+# every manifest has apiVersion, kind, metadata, spec; kubernetes fills in status.
+# A Deployment's spec has 3 key parts replicas, template (the pod blueprint), and the selector
+# The selector and the template's labels must match or kubernetes rejects the Deployment.
+# Deployment -> Replicaset -> Pods.
+# The Replicaset keeps the count right and the Deployment manages updates
+
+# A service finds it's pod by selector, not by name
+# If the service's selector doesn't match any pod's labels -> empty endpoints and no warnings
+
+
+# WHO                                  Its SELECTOR means                                 WHY
+# Deployment                "pods with app: frontend are mine"            to count them and keep replicas right
+# Service                   "pods with app: frontend get my traffic"      to know where to send requests
+
+# Pod is the smallest thing kubernetes manages, containers always live inside a pod
+# A pod usually has one container; extra ones are helpers called sidecars
+# Deployment -> Replicaset -> Pods.
+# Deployment -> creates a Replicaset
+# Replicaset -> creates Pod objects (stored in the cluster, through the API server)
+# schedular -> assigns each pod to a node
+# kubelet -> reads the pod's container list and STARTS the containers
+
+# Containers in the same pod share one IP, and port space (so two containers can't have the same port) and talk over localhost.
+# Volumnes are declared per pod; any container in the pod can mount them.
+# Different pod talk through services because pods IP change but same pod containers don't have to do that.
+# emptyDir lives as long as the pod lives and is only visible inside the pod.
+# IPC (shared memory and semaphores) - can use low level inter-process communication.
+
+
+# Resource limits: CPU and memory limits are set per container (the schedular adds them up to place the pod)
+# Restarts: If one container crashes, the kubelet restarts only that container; and keeps other running and the pod keeps its IP
+
+
+
+
+
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: frontend-deployment
+  namespace: melanoma-production  # A namespace must be created before this otherwise it will throw error
+  labels: 
+    app: frontend # they are optional and does not have to match the name, nothing uses them, for purpose like kubectl get deployments -l app=frontend
+
+
+
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate   # start some new ones, wait until they are ready, remove some old ones, repeat. No downtime, as long as readiness probes are honest
+                          # other types include Recreate: delete all old pods first and then start new ones, so that the two versions never run at the same time, useful when two versions can't coexist together, what does it mean?? let's see
+                          # First of all keep in mind a Deployment has one template, changing it creates a new Replicaset, the old ones are scaled down and kept at 0 for rollbacks.
+                          # this strategy kicks in whenever the pod template changes, changing your code only matters to kubernetes once it shows up the in the template either via image change or anything else.
+                          # So when template changes and the strategy is RollingUpdate then an old pod is only removed once a new pod is ready, accoding to it's readiness probe. That's what guarantees no downtime, and also why the readiness probe has to be honest, so if a broken new pod counted as ready that means old pod will be removed as well and we will have no actual working pod.
+                          # If the strategy is Recreate then all old pods are removed and then new pods are created, and again new pods must be ready in reality otherwise same way will have no actual workingp pod.
+  selector: 
+    matchLabels: 
+      app: frontend-app    # This "app" is my choice, it is not a part of syntax, i.e. app is not a fixed field.  One deployment has one filter it is a filter, a rule for recognising it's pod, "every pod with these labels are mine", these has to be unique within the same namespace
+                # deployment uses these selectors in case a pod dies, so the Replicaset's Selector now counts 0 pods but wants 1 so it creates a new one but without the selector it will have no way to know it's pod is gone
+                # every /predict or something goes through nginx -> backend:8000, the backend service uses its selector (app: backend) to keep the endpoints list up to date, when the backend pod is replaced with new IP, the selector picks the new pod automatically and nginx's configuration never changed
+                # selectors are also useful in daily debugging-> kubectl get pods -n melanoma -l app=backend, or kubctl logs -n melanoma -l app=backend, and so on
+                # right now any pod in the cluster can call backend:8000/predict: Grafana, Prometheus, anything, A network policy can say "only pods labelled app:frontapp may connect to the pods labelled app:backend, on port 8000" (in this case promtheus would not be allowed to scrape metrice)
+  template:
+    metadata:
+      labels: 
+        app: frontend-app   # must match with the selector.matchLabels
+
+    spec: 
+      # securityContext:
+      #   fsGroup: 1000
+      
+      # volumns:  # Not needed for frontend 
+      #   - name: frontend-configmap  # This is what the container's volumeMounts uses to say "mount that volume here", A configMap's data is a set a key-value pair, so when it is mounted, each key becomes a filename and each value becomes that file's content, 
+      #                               # so a key nginx.conf whose value is your whole config text, appears in the container as a file called nginx.conf, containing that text inside mountPath folder, This is just an example because we are already putting the nginx.conf in the image itself, because our forwarding rule rarely changes, but if it changed more often then.
+      #                               # Note that one configMap is copied to one folder no matter how many key-value pairs are in their, so a workaround for that is, when in volumes, use item (and then key and path) to pick one key-value pair, and then make it as one configMap and do the same for the rest of them, and then if you want to add a file to a folder then give the folder location in the mountPath and if you want to replace a file then key the exact filelocation (with the filename) as mountPath.
+      #                               # We can also make it so that if there is a change in configPath we can restart the pods
+      #     configMap:
+      #       name: frontend-config   # This is what kubelet uses to fetch the real configMap from the cluster. Everything we "apply" is saved in etcd through the API server, kubelet on each node watches the API server and prepares everything a pod needs, mounted configMap files update after a while; env vars and subPath files don't.
+                                    # kubectl apply -f frontend-config.yaml must be done beforehand, and when we do the "apply" API server checks it (auth, valid fields, under 1 MB) -> stores it in etcd under the key /registry/configmaps/<namesapce>/frontend-config, At this point it is only data in the cluster's database and not on any node or in any container yet, if no pods uses it, it just sits there.
+                                    # A pod that uses it is scheduled on a node, the pod's spec has a volume of type configMap with name: frontend-config (which is exactly what we have). The schedular picks a node; the kubelet on that node starts preparing the pod, and then the kubelet asks the API server for the frontend-config, and keeps watching it for changes. (security detail -> A kubelet is only allowed to read configMaps and Secrets used by pods on its OWN node. A compromised node can't read every config in the cluster).
+                                    # Then kubelet writes each key as a file into a folder that belongs to this pod, on the node's disk: /var/lib/kubelet/pods/<pod-id>/volumes/kubernetes.io~configmap/<volume-nickname> and in a hidden, timestamped folder with REAL files, and it creates a link pointing to the current version and then the container runtime bind-mounts that folder into the container at your mountPath.
+        # - name: data-vol    # does not have to be same name as frontend-pvc but data-vol must be used in volumeMounts cause as we know this is the name that the container users
+        #   persistentVolumeClaim:
+        #     claimName: frontend-pvc     # front end does not write anything so it does not need a persistentVolume but if it did need it then we would have to  using kubectl apply -f frontend-pvc.yaml (same name if you can see)
+                                          # when a contianer mounts the PV, it only has a pointer to that PV storage, the PV is shared by all the containers that choose to mount it. So yes concurrency is there of sure.
+        # - name: host-vol  # Not needed for frontend and in general should be avoided.
+        #   hostPath:
+        #     path: /mnt/some/folder # a path on the node
+        #     type: DirectoryOrCreate
+        # - name: scratch-vol  # Not needed for frontend as of now
+        #   emptyDir: {}
+      
+      containers:
+        - name: frontend-app
+          image: frontend-image:v1
+          imagePullPolicy: IfNotPresent
+          # command:  # we don't need it for frontend
+          # args:
+          ports:
+            - containerPort: 80   # mostly documentation, like EXPOSE in dockerfile
+              name: http
+          # env:    # Not needed for frontend
+          #   - name: MODE
+          #     value: "production"
+          #   - name: MAX_ITEMS
+          #     valueFrom:
+          #       configMapKeyRef:
+          #         name: frontend-config
+          #         key: MAX_ITEMS
+          #   - name: DB_PASSWORD
+          #     valueFrom:
+          #       secretKeyRed:
+          #         name: frontend-secret
+          #         key: DB_PASSWORD
+          # envFrom:  # Not needed for frontend
+          #   - configMapRef:
+                # name: frontend-config
+          # volumeMounts:   # No volumes so no volumeMounts
+          #   - name: frontend-configmap
+          #     mountPath: /etc/frontend-app
+          #   - name: data-vol   # same name as used in volumes 
+          #     mountPath: /var/lib/frontend-app
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+            # startupProbe:  # Not needed for frontend
+            #   httpGet:
+            #     path: /health
+            #     port: 80
+            #   periodSeconds: 10
+            #   failureThreshold: 30
+          livenessProbe:    # Kubelet on each node runs the probe, from outside the container, this is why image doesn't need curl. The kubelet runs the probe on the node where the pod is running.
+            httpGet:        # Say we configure the liveness probe: httpGet on path /, port 80, then every 10 seconds, the kubelet: 1. Opens a TCP connection to the Pod's IP, port 80 directly (not through the service, not the container's localhost) then it sends GET / HTTP/1.1, UserAgent: kube-probe/1.xx -> then writes up to the timeoutSeconds for an answer -> status 200-399 is success anything else or no answer or timeout is a failure -> and it counts the results and if the failures in a row are more than failureThreshold then the probe "fails"
+                              
+              path: /  # but what is the role of this? so as we know the kubelet will hit http request and that will be recieved by who? none other than nginx as it is the webserver, and then then nginx checks the reqest path is "/" so it hands over the index.html but kubelet only cares about the response so it passes and gets OK 200, now notice if you give a path like /heatlh or something then depending on nginx.conf it might route it somewhere else like backend, and if backened is not up the we will get a failure and kubelet might restarts all pods for frontend which was already OK, so make sure this path is correct
+              port: 80  # where the container is listening on.
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe: # As you see it is the same as because nginx has nothing extra to check, NOTE that these paths are endpoints that we define, i.e. they come from our code like /predict etc.
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 5

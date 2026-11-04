@@ -1,0 +1,186 @@
+services:
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: melanoma_ngrok
+    command: http frontend:80
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"
+    depends_on:
+      - frontend
+    networks:
+      - default
+    restart: unless-stopped
+
+  # ── Frontend: nginx static file server ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: melanoma_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Backend: FastAPI inference server ───────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: melanoma_backend
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: /mlruns
+      MLFLOW_ARTIFACT_ROOT: /mlruns
+      BASELINE_STATS_PATH: /app/data/baseline_stats/v1_stats.json
+    volumes:
+      - ./backend:/app
+      - ./mlruns:/mlruns
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+  # ── MLflow UI: visualize experiments and model registry ─────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.1.1
+    container_name: melanoma_mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/opt/airflow/mlruns
+    # Mount the shared host mlruns folder at /opt/airflow/mlruns INSIDE this container.
+    # This path doesn't need to exist on the host or in this image beforehand -
+    # Docker creates it fresh inside this container's own filesystem.
+    # We match this exact path to what Airflow uses (/opt/airflow/mlruns) because
+    # that's the path Airflow's training runs already recorded as their artifact_uri.
+    # If the label doesn't match, MLflow looks for a folder that doesn't exist here
+    # and reports empty artifacts, even though the data is present on the host.
+
+    # --backend-store-uri /opt/airflow/mlruns   Must match the volume mount path above -  this is where MLflow looks for run metadata  Listen on all interfaces so it's reachable from outside the container (not just localhost)
+    command: >
+      mlflow ui
+      --backend-store-uri /opt/airflow/mlruns \ 
+      --host 0.0.0.0 \                          
+      --port 5000 \
+    restart: unless-stopped
+
+# ============================================================
+# Prometheus Docker Compose Configuration
+# Phase 4 | Executed: Local Windows 11
+#
+# Runs Prometheus in a dedicated container and connects it to
+# the shared mlops_network so it can scrape the StatsD exporter.
+# ============================================================
+
+  prometheus:
+    # Use the official Prometheus image.
+    # No custom Dockerfile is required.
+    image: prom/prometheus:v2.51.0
+
+    container_name: melanoma_prometheus
+
+    # Host port 9090 → Prometheus container port 9090.
+    # Allows Prometheus UI to be accessed from the host at:
+    # http://localhost:9090
+    ports:
+      - "9090:9090"
+
+    volumes:
+
+      # Bind mount:
+      # Host prometheus.yml → configuration file inside container.
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+      # Named Docker volume:
+      # Persists Prometheus's time-series data even if the
+      # Prometheus container is recreated.
+      - prometheus_data:/prometheus
+
+    command:
+
+      # Tell Prometheus where its configuration file is located
+      # inside the container.
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+      # Tell Prometheus where to store its time-series database.
+      - "--storage.tsdb.path=/prometheus"
+
+      # Enable the HTTP lifecycle endpoint, allowing configuration
+      # reloads without restarting the container.
+      - "--web.enable-lifecycle"
+
+      # So the command is prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.enable-lifecycle
+
+    # Allows the container to resolve the Windows host as
+    # host.docker.internal when a host-based route is required.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Automatically restart Prometheus unless it was explicitly
+    # stopped by the user.
+    restart: unless-stopped
+
+    # Prometheus must share this network with statsd-exporter
+    # so that "statsd-exporter:9102" can be resolved using
+    # Docker's internal DNS.
+    networks:
+      - mlops_network
+
+
+##################################################### GRAFANA #####################################################
+
+  # ── Grafana: NRT dashboard ───────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: melanoma_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+
+
+
+# ============================================================
+# Named Volumes
+# ============================================================
+
+volumes:
+
+  # Docker-managed persistent storage for Prometheus metrics.
+  prometheus_data:
+  grafana_data: 
+
+
+# ============================================================
+# Networks
+# ============================================================
+
+# I will on purpose keep it out of the mlops_network to see if it works
+networks:
+   # Use the existing external Docker network shared by
+   # Airflow and statsd-exporter.
+  mlops_network:
+    external: true
+    name: mlops_network
+

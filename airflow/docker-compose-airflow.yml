@@ -1,0 +1,895 @@
+# ============================================================
+# docker-compose-airflow.yml
+# Phase 1 & 2 | Executed: Local (Windows 11)
+#
+# Spins up Apache Airflow with custom image that includes
+# ML dependencies (torch, mlflow, scikit-learn etc.)
+# pre-baked — fast restarts, no pip install on every start.
+#
+# Usage:
+#   docker compose -f airflow/docker-compose-airflow.yml build
+#   docker compose -f airflow/docker-compose-airflow.yml up airflow-init
+#   docker compose -f airflow/docker-compose-airflow.yml up airflow-webserver airflow-scheduler
+#   Open: http://localhost:8080
+#   Default login: admin / admin
+# ============================================================
+
+      #            Custom Airflow Image
+      #         ┌──────────────────────┐
+      #         │ Airflow + Python +    │
+      #         │ PyTorch + MLflow ... │
+      #         └──────────┬───────────┘
+      #                    │
+      #        ┌───────────┼───────────┐
+      #        ↓           ↓           ↓
+      #  airflow-init  webserver   scheduler
+      #        │           │           │
+      #   DB setup       UI         schedules
+
+
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+  # Set environment variables inside the container
+  environment:
+    AIRFLOW__CORE__EXECUTOR: SequentialExecutor  # AIRFLOW__<section>__<setting>: means [core] executor = SequentialExecutor, It is read by Airflow itself during startup. AIRFLOW__CORE__EXECUTOR: SequentialExecutor, Airflow runs tasks one at a time: Task A then Task B then Task C, No parallel execution.
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"  # This tells Airflow whether it should load its built-in example DAGs. If this is set to true then the airflow ui will container some example DAGs, and it is true by default so I am setting this as false.
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags # This tells Airflow where to look for DAG files inside the container, I will mount this "/opt/airflow/dags" in the VOLUME.
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO # Refer to end of the file to get detailed comment on this.
+    # AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db  # Refer to end of the file to get detailed comment on this.   # Anyways not using this
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    AIRFLOW__WEBSERVER__SECRET_KEY: "melanoma_mlops_secret_key_change_in_prod"  # Refer to end of the file to get detailed comment on this.
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"  # Check what happens in the UI when we set it to false and Refer to end of the file to get detailed comment on this.
+    # AIRFLOW__METRICS__STATSD_ON: "false" # Refer to end of the file to get detailed comment on this.
+    # AIRFLOW__METRICS__PROMETHEUS_ON: "true"
+    # AIRFLOW__METRICS__PROMETHEUS_PORT: 8793  # !!! ALERT ALERT !!! check the end of the file because no such config might exist for ariflow 2.8.1 . if it does then this is the explanation -> When Airflow exposes its Prometheus metrics endpoint, make that endpoint listen on port 8793. Prometheus needs a dedicated network endpoint from which it can scrape Airflow's metrics, and 8793 is the port you've configured that endpoint to use.
+    PYTHONPATH: /opt/airflow/scripts  # Refer to end of the file to get detailed comment on this.
+    AIRFLOW__METRICS__STATSD_ON: "true"   # No such this as Prometheus endpoint, we have to use statsD
+    AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"   # hostname of your statsd_exporter service
+    AIRFLOW__METRICS__STATSD_PORT: "8125"
+    AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
+    AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: 30
+    AIRFLOW__CORE__HEARTBEAT_INTERVAL: 30
+    AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC: 30
+
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./scripts:/opt/airflow/scripts
+    - ./configs:/opt/airflow/configs
+    # - airflow-db:/opt/airflow # won't use this not using the SQL db 
+    - airflow-logs:/opt/airflow/logs
+    - ../data:/opt/airflow/data
+    - ../logs:/opt/airflow/app_logs
+    - ../training:/opt/airflow/training
+    - ../mlruns:/opt/airflow/mlruns
+
+
+services:
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common # << is the merge key
+    entrypoint: /bin/bash  # the program that is started, so any command from "command:" will be run here in /bin/bash as this is the entrypoint now
+    # airflow db init -> not using this anymore instead will use airflow db migrate
+    command:
+      - -c
+      - |
+        airflow db migrate 
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Melanoma \
+          --lastname MLOps \
+          --role Admin \
+          --email admin@melanoma.local || true
+
+        # Create read-only viewer account
+        airflow users create \
+          --username viewer \
+          --password viewer \
+          --firstname Melanoma \
+          --lastname Viewer \
+          --role Viewer \
+          --email viewer@melanoma.local || true
+
+        echo "Airflow initialized"
+    depends_on:
+    - postgres
+    restart: "no"   # since initialisation is supposed to happen once, Run this container, let it finish its initialization work, and don't restart it after it exits
+
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: airflow webserver
+    ports:
+      - "8080:8080"
+      - "8793:8793" # there is nothing on this port it is not a valid port of prometheus or anything
+    depends_on:
+      - airflow-init   # entrypoint inherited from the Airflow base image
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: airflow scheduler
+    depends_on:
+      - airflow-init
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  statsd-exporter:
+    image: prom/statsd-exporter:latest   # Official Prometheus StatsD-to-Prometheus bridge
+    container_name: statsd-exporter
+    command:
+      - "--statsd.listen-udp=:8125"      # Listens for incoming StatsD metrics from Airflow (UDP)
+      - "--web.listen-address=:9102"     # Serves converted metrics in Prometheus format (HTTP)   curl http://localhost:9102/metrics to check the exporters state
+    ports:
+      - "9102:9102"                      # HOST:CONTAINER - exposes /metrics to your host machine
+                                          # so you can curl http://localhost:9102/metrics to debug
+      - "8125:8125/udp"                  # HOST:CONTAINER - exposes StatsD UDP port to host
+                                          # (not required for container-to-container traffic,
+                                          # only needed if something outside Docker sends metrics here)
+
+
+# 8125 — statsd_exporter receives UDP packets here. Airflow pushes StatsD-formatted metric lines into this port continuously, with no acknowledgment or response.
+# 9102/metrics — statsd_exporter serves an HTTP endpoint here. It doesn't "send to Prometheus" on its own initiative — it just sits there holding the latest translated values, waiting. It only responds when something sends it an HTTP GET request.
+# TCP is connection-based and reliable: it makes sure every packet arrives, in the right order, and resends anything that gets lost. This has overhead (handshakes, acknowledgments, retries).
+# UDP is connectionless and "fire and forget": it just sends the packet and doesn't check whether it arrived, doesn't guarantee order, and doesn't retry if something's lost. This makes it fast and lightweight, but unreliable.
+# Airflow sends its metrics to the StatsD exporter using the hostname
+# "statsd-exporter" and UDP port 8125:
+#
+#     Airflow
+#        │
+#        │ UDP metrics
+#        │ statsd-exporter:8125
+#        ▼
+#     StatsD exporter
+#
+# "statsd-exporter" is the Docker Compose service name. Docker provides
+# DNS-based service discovery for containers that are connected to the
+# same Docker network.
+#
+# Therefore, Airflow and statsd-exporter must share a Docker network.
+# This allows the Airflow container to resolve:
+#
+#     statsd-exporter → <statsd-exporter container IP>
+#
+# and send the StatsD packets directly to the exporter.
+#
+# If they are on different Docker networks, "statsd-exporter" will not
+# be resolvable/reachable from Airflow, so Airflow cannot send its metrics
+# to the exporter.
+#
+# In this project, both services are connected to the external
+# "mlops_network", so Airflow can communicate with statsd-exporter
+# internally without publishing port 8125 to the host.
+#
+# The host port mapping:
+#
+#     8125:8125/udp
+#
+# is only needed if something outside the Docker network needs to send
+# StatsD packets to the exporter. Airflow itself does not need this
+# host mapping because it communicates directly over mlops_network.
+
+volumes:
+  # airflow-db:  # Not using this anymore
+  airflow-logs:
+  postgres-db:
+
+networks:
+  default:
+    external: true  # Docker Compose, do NOT create this network. Use an existing Docker network with this name.
+    name: mlops_network
+
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AIRFLOW LOGGING LEVEL
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Controls the minimum severity of log messages that Airflow will output.
+#
+# Available logging levels, from least to most severe:
+#
+#   DEBUG       (10) → Detailed information useful for debugging
+#   INFO        (20) → Normal operational information
+#   WARNING     (30) → Something unexpected or potentially problematic
+#   ERROR       (40) → An operation has failed
+#   CRITICAL    (50) → A very serious failure
+#
+# The configured level acts as a minimum severity threshold.
+# For example, if the level is set to INFO:
+#
+#   DEBUG       → NOT shown
+#   INFO        → shown
+#   WARNING     → shown
+#   ERROR       → shown
+#   CRITICAL    → shown
+#
+# If the level is changed to CRITICAL:
+#
+#   DEBUG       → NOT shown
+#   INFO        → NOT shown
+#   WARNING     → NOT shown
+#   ERROR       → NOT shown
+#   CRITICAL    → shown
+#
+# Therefore, increasing the logging level results in FEWER messages being
+# displayed, because only messages with equal or greater severity are kept.
+#
+# INFO is used here so that normal Airflow operations are visible while
+# filtering out the very detailed DEBUG messages.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AIRFLOW METADATA DATABASE
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Specifies the database connection that Airflow uses for its internal
+# metadata. Airflow stores information such as:
+#
+#   - DAG runs
+#   - Task instances and their states
+#   - Airflow users and roles
+#   - Scheduler/job information
+#   - Other Airflow metadata
+#
+# This is NOT the database for our ML/data files. It is specifically the
+# database used internally by Airflow.
+#
+# The value is a SQLAlchemy database connection URI:
+#
+#   sqlite:////opt/airflow/airflow.db
+#   │      │
+#   │      └── Absolute path to the SQLite database file inside the container
+#   │
+#   └──────── Database type: SQLite
+#
+# Therefore, Airflow will use a SQLite database stored at:
+#
+#   /opt/airflow/airflow.db
+#
+# The database file does not need to exist beforehand. The `airflow db init`
+# command executed by the airflow-init service initializes the Airflow
+# metadata database at this location.
+#
+# IMPORTANT:
+# The database path and the Docker volume have different responsibilities.
+#
+#   environment:
+#       Tells AIRFLOW which database to use and where the database file is.
+#
+#   volumes:
+#       Tells DOCKER where the /opt/airflow directory should be persisted.
+#
+# In this Compose file, the corresponding volume is:
+#
+#   airflow-db:/opt/airflow
+#
+# Therefore:
+#
+#   Container:
+#       /opt/airflow/airflow.db
+#                  │
+#                  ▼
+#       airflow-db Docker volume
+#
+# The volume allows the Airflow metadata database to persist when the
+# container is recreated. It also allows the airflow-init, airflow-webserver,
+# and airflow-scheduler services to access the same Airflow metadata database.
+#
+# Without the volume, the SQLite database would live only inside the
+# container's writable filesystem and could be lost when that container is
+# removed/recreated.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# =========================================================================
+    # WHY AIRFLOW__WEBSERVER__SECRET_KEY IS REQUIRED:
+    # -------------------------------------------------------------------------
+    # 1. UNDERLYING ARCHITECTURE (Server-Side Sessions):
+    #    Airflow's Web UI runs on Flask-AppBuilder and uses Flask-Session backed
+    #    by the metadata database (`session` table via SQLAlchemy).
+    #    The browser holds ONLY an opaque `session_id`, while all permissions
+    #    and user state live securely in the database.
+    #
+    # 2. CRYPTOGRAPHIC SIGNING OF THE SESSION ID:
+    #    Airflow does not send raw session IDs. It signs them using this key:
+    #      Cookie format: session=<session_id>.<HMAC_signature>
+    #    This prevents:
+    #    - Session Enumeration / DB DoS: If an attacker script brute-forces
+    #      random session IDs, Airflow validates the HMAC signature in memory
+    #      in nanoseconds and rejects the request BEFORE hitting the database.
+    #    - Session Tampering & Fixation: Prevents attackers from injecting
+    #      pre-fabricated session IDs or altering IDs in transit; only session
+    #      IDs minted by this server with this exact key are accepted.
+    #
+    # 3. CSRF (CROSS-SITE REQUEST FORGERY) PROTECTION:
+    #    Flask-WTF uses this SECRET_KEY to generate unique tokens embedded in
+    #    web forms and headers (e.g., HMAC(session_id + timestamp, SECRET_KEY)):
+    #    - Why needed: Browsers automatically attach cookies to cross-site requests.
+    #      If a logged-in user visits a malicious site with a hidden auto-submitting
+    #      form pointing to `/dags/delete`, the browser sends the session cookie.
+    #    - How this key blocks it: Airflow requires a valid CSRF token inside the
+    #      form body. Because third-party sites cannot read the token (blocked by
+    #      the browser's Same-Origin Policy) and cannot forge it without knowing
+    #      this SECRET_KEY, the forged action is rejected with a 400 Bad Request.
+    #
+    # 4. WHY NOT RE-SEND PASSWORDS ON EVERY REQUEST?
+    #    - CPU Overhead: Password verification uses deliberately slow cryptographic
+    #      hashing (bcrypt/Argon2). Re-verifying credentials on every UI click,
+    #      log scroll, or background poll would spike CPU to 100% and crash Airflow.
+    #      Validating the HMAC signature takes microseconds.
+    #    - Credential Safety: The browser authenticates credentials once at /login
+    #      and purges raw passwords from memory immediately.
+    #
+    # 5. WHY EXPLICITLY DEFINE IT HERE IN DOCKER COMPOSE?
+    #    - Persistence: If omitted, Airflow generates a random ephemeral key in RAM
+    #      on boot. Every container restart (`docker compose down/up`) invalidates
+    #      all existing session signatures and CSRF tokens, logging all users out.
+    #    - Multi-Worker Consistency: Gunicorn worker processes and multi-container
+    #      webserver replicas must share the identical key to validate incoming
+    #      session cookies and CSRF tokens interchangeably.
+    #
+    # PRODUCTION NOTE:
+    # Replace this string with a secure random key generated via:
+    #   openssl rand -hex 32
+    # and supply it via a .env file rather than hardcoding it in source control.
+    # =========================================================================
+
+
+
+# Expose Airflow's configuration through the Web UI.
+# When enabled, the Airflow Configuration page displays
+# the configuration values currently being used by Airflow.
+# Useful for local development/debugging, but should generally
+# be disabled in production because configuration may contain
+# sensitive information.
+
+
+
+
+
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ALERT ALERT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+# ========================================================================
+# STATSD METRICS
+# ------------------------------------------------------------------------
+# Controls whether Airflow uses StatsD to publish its application metrics.
+#
+# WHAT IS STATSD?
+# StatsD is a metrics collection mechanism that receives numerical
+# measurements from an application. Airflow can send metrics such as:
+#   - task success/failure counts
+#   - task execution duration
+#   - DAG/scheduler-related activity
+#   - other Airflow operational metrics
+#
+# If StatsD were enabled, the general flow would be:
+#
+#   Airflow
+#      │
+#      │ sends metrics
+#      ▼
+#   StatsD
+#      │
+#      ▼
+#   Monitoring / metrics backend
+#
+# WHAT DOES "false" MEAN?
+# Setting this to false tells Airflow not to use the StatsD integration.
+# Airflow will therefore not send its metrics through a StatsD server.
+#
+# IMPORTANT:
+# This does NOT mean that Airflow has no metrics.
+# It only disables the StatsD mechanism for exporting those metrics.
+# It also does NOT affect:
+#   - Airflow task execution
+#   - DAG scheduling
+#   - Airflow logging
+#   - the scheduler heartbeat
+#   - the Airflow webserver
+#   - Prometheus metrics
+#
+# WHY IS IT FALSE IN THIS PROJECT?
+# This project uses Prometheus for metrics collection instead of StatsD.
+# The corresponding Prometheus configuration is:
+#
+#   AIRFLOW__METRICS__PROMETHEUS_ON: "true"
+#   AIRFLOW__METRICS__PROMETHEUS_PORT: 8793
+#
+# Therefore, the intended monitoring path is:
+#
+#   Airflow ──metrics──> Prometheus ──> Grafana
+#
+# rather than:
+#
+#   Airflow ──metrics──> StatsD
+#
+# STATSd VS PROMETHEUS:
+#
+# StatsD:
+#   Airflow pushes metrics to a StatsD service.
+#
+# Prometheus:
+#   Prometheus collects metrics from an exposed Airflow metrics endpoint.
+#
+# In this configuration:
+#   StatsD      → disabled
+#   Prometheus  → enabled
+#   Grafana     → can visualize the metrics collected by Prometheus
+#
+# In short:
+#   This setting disables Airflow's StatsD metrics exporter because
+#   Prometheus is the metrics collection system used by this project.
+# ========================================================================
+
+
+
+
+
+
+# AIRFLOW METRICS ENDPOINT
+# ------------------------------------------------------------------------
+# Prometheus periodically sends an HTTP GET request to this endpoint to
+# collect Airflow's metrics.
+#
+# The endpoint itself does not have to be called a "Prometheus endpoint".
+# It is simply an HTTP endpoint exposed by the Airflow webserver.
+#
+# Prometheus will request:
+#
+#   http://airflow-webserver:8080/admin/metrics
+#
+# Here:
+#   airflow-webserver → Docker hostname/service name of the Airflow
+#                        webserver container
+#   8080              → port on which the Airflow webserver is running
+#   /admin/metrics    → HTTP path from which the metrics are returned
+#
+# The important requirement is that the endpoint must actually exist and
+# return the metrics in a format that Prometheus understands.
+#
+# The endpoint could technically have any path, for example:
+#   /metrics
+#   /admin/metrics
+#   /my-metrics
+#
+# The path name itself is not what makes it a Prometheus endpoint.
+# What matters is:
+#
+#   1. The HTTP endpoint exists.
+#   2. Prometheus can reach it over the network.
+#   3. The endpoint returns metrics in a Prometheus-compatible format.
+#
+# In this project, Prometheus is configured to scrape:
+#
+#   airflow-webserver:8080/admin/metrics
+#
+# Therefore, when the system is actually running, VERIFY that this
+# endpoint really exists in the Airflow webserver and returns metrics.
+#
+# This is particularly important because the Airflow configuration and
+# Prometheus configuration must agree on the actual metrics mechanism.
+# The Compose file contains:
+#
+#   AIRFLOW__METRICS__PROMETHEUS_ON: "true"
+#   AIRFLOW__METRICS__PROMETHEUS_PORT: 8793
+#
+# while Prometheus is configured to use:
+#
+#   airflow-webserver:8080/admin/metrics
+#
+# Do not assume that these two configurations automatically refer to the
+# same endpoint. Check the running system.
+#
+# WHAT TO CHECK WHEN RUNNING:
+#
+#   1. Make sure the Airflow webserver is running.
+#   2. Make sure Prometheus can resolve/reach "airflow-webserver".
+#   3. Check that /admin/metrics actually responds.
+#   4. Verify that the response contains metrics in Prometheus format.
+#   5. Check the Prometheus UI → Status → Targets and confirm that the
+#      "airflow" target is UP.
+#   6. If it is DOWN, inspect the error shown by Prometheus; it may indicate
+#      a wrong hostname, port, path, network connection, or missing endpoint.
+#
+# IMPORTANT:
+# The configuration file only tells Prometheus WHERE to scrape.
+# It does not create /admin/metrics in Airflow.
+# Some Airflow route/exporter/plugin must actually provide that endpoint.
+#
+# Therefore, the final verification must be done when the containers are
+# running rather than assuming from the YAML alone that the endpoint exists.
+# - job_name: "airflow"
+#   static_configs:
+#     - targets: ["airflow-webserver:8080"]
+#   metrics_path: /admin/metrics
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ALERT END !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+
+
+
+
+
+# PYTHON MODULE SEARCH PATH
+# ------------------------------------------------------------------------
+# Adds /opt/airflow/scripts to Python's module search path inside the
+# Airflow containers.
+#
+# Normally, when Python executes an import such as:
+#
+#     from preprocess import preprocess_data
+#
+# Python searches its standard module locations and the current/default
+# import paths for a file named preprocess.py.
+#
+# Setting PYTHONPATH adds an extra directory to those locations:
+#
+#     /opt/airflow/scripts
+#
+# This project also mounts the local scripts directory into that location:
+#
+#     ./scripts:/opt/airflow/scripts
+#
+# Therefore the relationship is:
+#
+#     Local project:
+#         ./scripts/
+#              │
+#              │ Docker bind mount
+#              ▼
+#     Container:
+#         /opt/airflow/scripts/
+#              │
+#              │ PYTHONPATH
+#              ▼
+#     Python searches this directory for importable modules
+#
+# For example, if the project contains:
+#
+#     scripts/
+#     ├── preprocess.py
+#     ├── validate.py
+#     └── split.py
+#
+# then inside the container these files are available as:
+#
+#     /opt/airflow/scripts/preprocess.py
+#     /opt/airflow/scripts/validate.py
+#     /opt/airflow/scripts/split.py
+#
+# and Python can find them when resolving imports.
+#
+# IMPORTANT:
+# PYTHONPATH does NOT copy or mount the scripts directory.
+# The Docker volume above is what makes the files available inside
+# the container. PYTHONPATH only tells Python where to search for them.
+#
+# In this project:
+#
+#     Docker volume → makes the scripts available
+#     PYTHONPATH    → makes the directory discoverable by Python imports
+#
+# The variable is inherited by the Airflow containers because it is
+# defined inside the common environment configuration.
+# PYTHONPATH: /opt/airflow/scripts
+
+
+
+# ========================================================================
+# AIRFLOW HEARTBEAT CONFIGURATION
+# ------------------------------------------------------------------------
+# These three settings are related to Airflow's heartbeat/job machinery,
+# but they do NOT mean that the scheduler wakes up, refreshes the UI,
+# or checks for DAG changes only at these intervals.
+#
+# The scheduler itself is a continuously running Airflow process:
+#
+#     airflow scheduler
+#             │
+#             ├── continuously processes DAGs and task states
+#             ├── detects newly triggered DAG runs
+#             └── schedules eligible tasks
+#
+# The heartbeat is a separate liveness mechanism used to indicate that
+# Airflow processes/jobs are still alive.
+# ========================================================================
+
+
+# ------------------------------------------------------------------------
+# 1. SCHEDULER HEARTBEAT
+# ------------------------------------------------------------------------
+# Controls the scheduler-specific heartbeat interval.
+#
+# The scheduler is the actual Airflow process responsible for scheduling:
+#
+#     DAG triggered
+#          ↓
+#     metadata DB records the DAG run
+#          ↓
+#     scheduler detects the new state
+#          ↓
+#     scheduler schedules the required tasks
+#
+# Separately, the scheduler periodically sends/updates its heartbeat
+# information to indicate that the scheduler process is still alive.
+#
+# IMPORTANT:
+# This is NOT the interval at which the scheduler checks for DAG changes.
+# The scheduler continuously runs its scheduling loop; the heartbeat is
+# only a liveness signal.
+#
+# With a value of 60, the scheduler heartbeat is configured to 60 seconds.
+# AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: 60
+
+
+# ------------------------------------------------------------------------
+# 2. CORE HEARTBEAT INTERVAL
+# ------------------------------------------------------------------------
+# "CORE" is an Airflow configuration section, NOT a separate process,
+# container, or service.
+#
+# This is a general/core Airflow heartbeat configuration used by Airflow's
+# heartbeat machinery.
+#
+# Therefore, do NOT interpret this as:
+#
+#     "There is a Core process that wakes up every 60 seconds."
+#
+# Instead:
+#
+#     AIRFLOW__CORE__...
+#              ↓
+#     general Airflow configuration
+#
+# The heartbeat mechanism is used to keep track of the liveness of
+# Airflow-managed processes/jobs.
+#
+# This is separate from the scheduler's actual scheduling loop and does
+# not mean that DAGs are refreshed or checked only every 60 seconds.
+#
+# With a value of 60, the relevant core heartbeat interval is configured
+# to 60 seconds.
+# AIRFLOW__CORE__HEARTBEAT_INTERVAL: 60
+
+
+# ------------------------------------------------------------------------
+# 3. SCHEDULER JOB HEARTBEAT
+# ------------------------------------------------------------------------
+# Airflow has a concept called a "Job".
+#
+# A Job is NOT another process that performs scheduling.
+# The scheduler process is still the component actually doing the work.
+#
+# Instead, Airflow maintains a persistent Job record representing the
+# running Airflow process/job in the metadata database.
+#
+# Conceptually:
+#
+#     Scheduler process
+#            │
+#            │ "I am still alive"
+#            ↓
+#     Scheduler Job record
+#            │
+#            ↓
+#     Airflow metadata database
+#
+# The Job record can contain information about the Airflow process,
+# including its state and heartbeat information.
+#
+# Why is this useful?
+#
+# The scheduler process has its own memory, but if it crashes, that
+# process disappears. The persistent Job record in the metadata database
+# allows Airflow to see when the scheduler last reported that it was alive.
+#
+# For example:
+#
+#     20:00 → Scheduler Job heartbeat
+#     20:01 → Scheduler Job heartbeat
+#     20:02 → Scheduler crashes
+#
+# The database still contains the last known heartbeat, allowing Airflow
+# to determine that the Job's heartbeat has become stale.
+#
+# IMPORTANT:
+# The Job is not what performs the DAG scheduling.
+# The scheduler process performs the scheduling.
+# The Job is the persistent Airflow record used to track that process.
+#
+# With a value of 120, this scheduler Job heartbeat is configured to
+# 120 seconds.
+# Scheduler = actual process doing the scheduling
+
+# Job = Airflow's persistent record tracking that process
+
+# Core = configuration section, not another process
+
+# Heartbeat = liveness signal, not a refresh/scheduling timer
+
+
+# Airflow's /health endpoint is served by the webserver, but it can also report
+# the health of other Airflow components such as the scheduler.
+#
+# The scheduler periodically writes a heartbeat to the shared metadata database.
+#
+#                 ┌──────────────────────┐
+#                 │  Airflow Metadata DB  │
+#                 │                      │
+#                 │ Scheduler heartbeat  │
+#                 └──────────▲───────────┘
+#                            │
+#                  writes    │    reads
+#                            │
+#          ┌─────────────────┴─────────────────┐
+#          │                                   │
+#   ┌──────▼───────┐                   ┌───────▼──────┐
+#   │  Scheduler   │                   │  Webserver   │
+#   │  container   │                   │  container   │
+#   │              │                   │              │
+#   │ "I'm alive"  │                   │ GET /health  │
+#   └──────────────┘                   └──────────────┘
+#
+# The webserver does NOT directly contact the scheduler container.
+# Instead, /health reads the scheduler's latest heartbeat from the shared
+# metadata database and uses it to determine whether the scheduler is healthy.
+
+
+# ---------------------------------------------------------------------------
+# Docker network communication:
+#
+# When two containers are attached to the SAME Docker network, Docker
+# provides internal DNS resolution for container/service names.
+#
+# For example:
+#
+#   frontend  ──same network──>  backend
+#
+# The frontend can send a request to:
+#
+#   http://backend:8000
+#
+# Docker's internal DNS resolves "backend" to the backend container's
+# IP address on that network, and the request is sent directly to the
+# backend container's port 8000.
+#
+# If the containers are NOT on the same Docker network, "backend" will
+# generally not resolve through Docker's internal DNS from the frontend.
+# Therefore:
+#
+#   http://backend:8000
+#
+# will not work simply by using the container name.
+#
+# Communication then requires another network path, for example:
+#
+#   1. Attach the backend container to both networks, so the frontend
+#      can reach it through the shared network.
+#
+#   2. Publish the backend port on the Docker host:
+#
+#        ports:
+#          - "8000:8000"
+#
+#      and access it through the host's reachable IP and port:
+#
+#        http://<host-ip>:8000
+#
+#      The request then flows:
+#
+#        frontend
+#           ↓
+#        Docker host:<host-port>
+#           ↓
+#        backend container:<container-port>
+#
+# Therefore, "backend:8000" is not a universal address for a container.
+# It works because Docker's DNS can resolve the service/container name
+# within the Docker network that the requesting container is attached to.
+# ---------------------------------------------------------------------------
+
+
+# Service in kubernetes is a logical identity
+# ---------------------------------------------------------------------------
+# Multiple containers can run the same application in Docker.
+#
+# For example, we could have multiple replicas of a backend:
+#
+#     backend-1
+#     backend-2
+#     backend-3
+#
+# A frontend should communicate with the application through its service-level
+# name (for example, "backend:8000") rather than depending on a specific
+# replica/container name.
+#
+# However, Docker networking and application state are two separate concerns.
+#
+# Docker networking answers:
+#     "Where should this network request go?"
+#
+# Application architecture answers:
+#     "What happens when multiple replicas process requests concurrently?"
+#
+# If multiple backend containers maintain state only in their own memory,
+# their state can become inconsistent:
+#
+#     backend-1 → counter = 11
+#     backend-2 → counter = 10
+#
+# Therefore, state that must be shared between replicas is normally kept in
+# an external/shared system such as a database or Redis.
+#
+# For example:
+#
+#                 ┌── backend-1 ──┐
+#                 │               │
+#     Frontend ───┼── backend-2 ──┼──► Shared Database
+#                 │               │
+#                 └── backend-3 ──┘
+#
+# Multiple replicas can access the same database concurrently, so the
+# application/database must handle concurrency correctly using mechanisms
+# such as:
+#
+#     - transactions
+#     - database locks
+#     - isolation levels
+#     - atomic operations
+#     - unique constraints
+#     - optimistic concurrency/versioning
+#
+# Docker itself does NOT synchronize application state between containers.
+#
+# Example:
+#
+#     backend-1 ──┐
+#                 ├──► Database
+#     backend-2 ──┘
+#
+# If both containers update the same data at the same time, the database
+# and application logic must ensure that updates are performed safely and
+# that race conditions, lost updates, duplicate processing, etc. are avoided.
+#
+# This is especially important for systems such as Airflow. If multiple
+# Airflow webservers are running, they should use the same authoritative
+# Airflow metadata database rather than maintaining separate independent
+# copies of the metadata.
+#
+# Therefore:
+#
+#     Docker networking
+#         → provides connectivity between containers
+#
+#     Application/database architecture
+#         → provides consistency and safe concurrent state management
+#
+# These are separate responsibilities.
+# ---------------------------------------------------------------------------

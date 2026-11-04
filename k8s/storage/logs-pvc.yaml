@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logs-pvc
+  namespace: melanoma-production
+  labels:
+    app: logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources: 
+    requests:
+      storage: 1Gi  

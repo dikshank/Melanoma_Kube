@@ -1,0 +1,14 @@
+# ============================================================
+# Grafana Datasource — Prometheus
+# Phase 4 | Auto-provisioned at Grafana startup
+# ============================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus_Melanoma
+    type: prometheus    # Must be named 'Prometheus'
+    access: proxy   # This is the detault
+    url: http://prometheus:9090
+    isDefault: true   
+    editable: false # Can't edit datasource from UI

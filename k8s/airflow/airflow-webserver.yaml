@@ -1,0 +1,214 @@
+# The webserver needs postgress, for login, DAG list, Runs and task states, on clicking trigger the webserver inserts a new dag_run row. The schedular sees that row and starts the tasks
+# Webserver is using the postgres via secretRef
+
+# "This manifest deploys the Airflow UI and API layer via a Kubernetes Deployment and exposes it internally via a ClusterIP Service.
+# Functionally, the Webserver serves two main purposes:
+# User Interface & Control Plane: It gives engineers a dashboard to monitor DAG runs, view logs, authenticate users, and manually trigger pipelines.
+# Database Interaction: When a user triggers a DAG or changes a state, the Webserver does not actually execute the tasks—it simply writes a new entry (like a dag_run) into the PostgreSQL metadata database (configured via the secretRef). From there, the separate Airflow Scheduler picks it up to schedule the actual pods/workers.
+# On the Kubernetes side, we have:
+# A Service routing traffic to port 8080 internally within the melanoma-production namespace.
+# A well-defined Probe strategy (Startup, Readiness, Liveness). The startupProbe is especially critical here because the Airflow webserver runs on Gunicorn/Flask and takes time to initialize database connections and sync assets before it can safely accept traffic without getting killed prematurely by Kubernetes.
+# Proper Resource Requests/Limits and decoupled configuration via ConfigMaps and Secrets."
+
+# "Gunicorn is the production WSGI server that powers the Airflow UI. It uses a master-worker process model so multiple engineers can browse DAGs and view logs concurrently without blocking each other."
+# OS Level:
+# ├── Gunicorn Master (PID 100) — Just a manager, doesn't touch web requests
+# │
+# ├── Python Worker 1 (PID 101) ──> Has its OWN interpreter & GIL ──> Handles Alice
+# ├── Python Worker 2 (PID 102) ──> Has its OWN interpreter & GIL ──> Handles Bob
+# └── Python Worker 3 (PID 103) ──> Has its OWN interpreter & GIL ──> Handles Charlie
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+  namespace: melanoma-production
+  labels:
+    app: airflow-webserver
+spec:
+  replicas: 2 # High Availability
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # Never kill a pod until a new one is healthy
+      maxSurge: 1 # Spin up the new pod alongside the old one
+  selector:
+    matchLabels:
+      app: airflow-webserver
+
+  template:
+    metadata:
+      labels:
+        app: airflow-webserver
+
+    spec:
+      containers:
+        - name: airflow-webserver
+          image: airflow-image:v1
+          imagePullPolicy: IfNotPresent
+          args: ["webserver"] # image entry point turns this into airflow webserver
+          envFrom:
+            - configMapRef:
+                name: airflow-config
+            - secretRef:
+                name: airflow-secret
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver
+  namespace: melanoma-production
+spec:
+  selector:
+    app: airflow-webserver
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+# ==============================================================================
+# TWO-LAYER PROCESS & RESOURCE MANAGEMENT: GUNICORN vs. KUBERNETES
+# ==============================================================================
+#
+# LAYER 1: APPLICATION LAYER (Gunicorn Master-Worker Architecture)
+# ------------------------------------------------------------------------------
+# Gunicorn sits inside the container. It runs 1 Master process that manages
+# multiple Worker processes (pre-fork model, usually 2-4 workers).
+#
+# What Gunicorn DOES handle (Application-Level Self-Healing):
+#   1. Process Crashes: If Worker 1 crashes (unhandled Python exception/segfault),
+#      the Master immediately spawns a new worker. Workers 2, 3, and 4 stay up.
+#   2. Frozen Workers (Timeouts): If Worker 1 hangs in an infinite loop or stuck DB
+#      call for >30s, Gunicorn sends SIGKILL to THAT worker only and replaces it.
+#   3. Traffic Balancing: Distributes incoming HTTP requests across all workers.
+#   4. Gradual Memory Leaks: Recycles workers after N requests (--max-requests)
+#      to clean up Python's slow memory creep over days/weeks.
+#
+# What Gunicorn CANNOT handle (Its Blindspot):
+#   - Gunicorn does NOT monitor live byte-by-byte memory usage.
+#   - It does NOT know what Kubernetes memory limits exist on the container.
+#
+# ------------------------------------------------------------------------------
+# LAYER 2: INFRASTRUCTURE / OS LAYER (Kubernetes & Linux Cgroups)
+# ------------------------------------------------------------------------------
+# Kubernetes sets a hard boundary on the container via Linux Cgroups:
+#   limits.memory = 1Gi (1024 MiB)
+#
+# The Linux kernel tracks aggregate RAM:
+#   Total RAM = Master Process + Worker 1 + Worker 2 + Worker 3 + Worker 4
+#
+# What happens on a Sudden Memory Spike:
+#   1. A user loads a large 600MB task log or DAG payload via the UI.
+#   2. Worker 1 allocates that memory in <1 second.
+#   3. Total container RAM spikes from 600MB -> 1.2Gi (breaching the 1Gi limit).
+#   4. Gunicorn sees NO issue (the worker is not frozen, timeout hasn't hit).
+#   5. The Linux Kernel OOM Killer acts immediately:
+#      - Sends a brutal SIGKILL (-9) to the container.
+#      - The Pod terminates with Exit Code 137 (OOMKilled).
+#      - ALL workers and the Master die; ALL active users are disconnected.
+#
+# KEY TAKEAWAY FOR INTERVIEWS:
+# Gunicorn self-heals application logic (crashes, hung workers, slow leaks).
+# Kubernetes enforces physical limits (Cgroups). A sudden spike bypasses Gunicorn's
+# checks and causes the OS to terminate the entire pod rather than just the bad worker.
+# ==============================================================================
+
+
+
+# ==============================================================================
+# DEEP DIVE: PROBE BLINDSPOTS, DATABASE SCALING, & TCP NETWORKING INTERNALS
+# ==============================================================================
+#
+# ------------------------------------------------------------------------------
+# 1. THE "HEALTH CHECK ILLUSION" (K8S PROBE BLINDSPOT)
+# ------------------------------------------------------------------------------
+# Scenario: 
+#   A pod runs 4 Gunicorn workers. Workers 1, 2, and 3 freeze on heavy DB queries.
+#   Only Worker 4 remains idle and free.
+#
+# What happens during a Kubernetes Probe Check:
+#   1. Kubelet sends an HTTP GET request to `/health` every 10 seconds.
+#   2. Gunicorn Master routes this incoming probe to the only idle worker (Worker 4).
+#   3. Worker 4 immediately returns `HTTP 200 OK`.
+#   4. Kubelet marks the Pod as 100% HEALTHY and READY.
+#
+# The User Impact (Russian Roulette):
+#   - Kubernetes continues sending full user traffic to this degraded Pod.
+#   - Real users have a 75% chance of hitting Workers 1, 2, or 3 (hanging/timing out)
+#     and only a 25% chance of hitting Worker 4.
+#   - Takeaway: A successful readiness probe proves *the web server can respond*,
+#     NOT that all internal worker processes are healthy.
+#
+# ------------------------------------------------------------------------------
+# 2. THE DATABASE CONNECTION MULTIPLIER & SCHEDULER STARVATION
+# ------------------------------------------------------------------------------
+# Architecture Trap:
+#   Each Gunicorn worker is an independent Python OS process with its own
+#   SQLAlchemy connection pool to PostgreSQL.
+#
+# The Math When Scaling Up:
+#   [Pods] x [Gunicorn Workers/Pod] x [SQLAlchemy Pool Size] = Total Web Connections
+#   Example:
+#     4 Web Pods  x  4 Workers  x  5 Connections = 80 Persistent Connections
+#
+# The Production Disaster:
+#   - Default PostgreSQL instances often have `max_connections = 100`.
+#   - The Webserver UI alone consumes 80 connection slots!
+#   - This leaves only 20 connections for the Airflow Scheduler and Worker tasks.
+#   - The Scheduler gets rejected: "FATAL: sorry, too many clients already".
+#   - RESULT: Entire data pipeline halts! Scheduled DAGs stop executing simply 
+#     because someone scaled the UI deployment.
+#
+# Production Solutions:
+#   1. App Level: Reduce pool size in config: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE = 2
+#   2. Infra Level (Gold Standard): Place a connection pooler like **PgBouncer** 
+#      between Airflow and Postgres to multiplex hundreds of Python sockets 
+#      into 20-30 real database connections.
+#
+# ------------------------------------------------------------------------------
+# 3. WHAT IS A "DATABASE CONNECTION" REALLY? (TCP SOCKETS vs. CPU THREADS)
+# ------------------------------------------------------------------------------
+# Confusion: "If Python is single-threaded, how does 1 worker hold 5 DB connections?"
+#
+# Reality:
+#   - A database connection is NOT a physical wire and NOT a CPU thread.
+#   - It is a **TCP Socket**: a pure software abstraction in the Linux OS kernel 
+#     consisting of an IP/Port pair and a few KB of RAM buffers (File Descriptor).
+#   - Think of it as "1 person with 5 phone lines on hold":
+#       * The single CPU thread can only speak on 1 line at a time.
+#       * The other 4 lines sit idle/on hold in the connection pool (QueuePool).
+#       * Pre-opening these lines avoids the costly 50-100ms TLS/handshake latency
+#         on every new web request.
+#
+# Why PostgreSQL Cares:
+#   - Even if 4 of those lines are sitting 100% idle, PostgreSQL allocates a dedicated
+#     backend process and RAM buffers (work_mem) for each open socket.
+#   - Therefore, idle pool connections count directly against `max_connections`!
+# ==============================================================================

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: melanoma-production
+  labels:
+    app: backend
+
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: backend
+
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      volumes:
+        - name: mlruns-vol # nickname for the volume used only in this deployment
+          persistentVolumeClaim:
+            claimName: mlruns-pvc # This is the name of the PersistentVolumeClaim that will be used to create the volume. This is important because it allows the backend service to access the mlruns data that is shared with other services.
+        - name: logs-vol
+          persistentVolumeClaim:
+            claimName: logs-pvc # This is the name of the PersistentVolumeClaim that will be used to create the volume. This is important because it allows the backend service to access the logs data that is shared with other services.
+
+      containers:
+        - name: backend
+          image: backend-image:v1
+          ports:
+            - containerPort: 8000 # This is just decorative and is used to indicate that the backend service will be listening on port 8000. This is important because it allows other services to know which port to use when communicating with the backend service.
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: /mlruns # This is the path inside the container where the mlruns data will be mounted. This is important because it allows the backend service to access the mlruns data that is shared with other services.
+            - name: MLFLOW_ARTIFACT_ROOT
+              value: /mlruns # This is the path inside the container where the mlruns data will be mounted. This is important because it allows the backend service to access the mlruns data that is shared with other services.
+            - name: BASELINE_STATS_PATH
+              value: /app/data/baseline_stats/v1_stats.json # Because airflow saves the baseline stats to /app/data/baseline_stats/v1_stats.json, we need to set this environment variable to point to that path so the backend service can access the baseline stats that is shared with other services.
+          volumeMounts:
+            - name: mlruns-vol # the nickname must match the name of the volume defined above
+              mountPath: /mlruns # This is the path inside the container where the mlruns data will be mounted. This is important because it allows the backend service to access the mlruns data that is shared with other services.
+              readOnly: true # This is important because it prevents the backend service from modifying the mlruns data that is shared with other services. The backend service only needs to read the mlruns data, so it should not be allowed to write to it.
+            - name: logs-vol
+              mountPath: /app/logs # This is the path inside the container where the logs data will be mounted. This is important because it allows the backend service to access the logs data that is shared with other services.
+                                   # The backend writes feedback data to /app/logs/feedback_data so we don't need a seperate mount for that. And same with FEEDBACK_LOG_PATH, RETRAINING_FLAG_PATH, PENDING_FEEDBACK_DIR, BASELINE_STATS_PATH
+              
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30

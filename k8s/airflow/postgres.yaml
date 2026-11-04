@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: melanoma-production
+type: Opaque
+stringData:
+  POSTGRES_USER: "airflow"
+  POSTGRES_PASSWORD: "airflow"
+  POSTGRES_DB: "airflow"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: melanoma-production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: melanoma-production
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres  # must match the selector above
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: postgres-secret  # must match the name of the secret defined above
+          env:
+            - name: PGDATA  # subfolder, so init db gets an empty dir
+              value: /var/lib/postgresql/data/pgdata  # This is the path inside the container where the postgres data will be stored. This is important because it allows the postgres service to access the data that is shared with other services.
+          volumeMounts:
+            - name: postgres-data  # must match the name of the volume defined below
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "airflow", "-d", "airflow"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "airflow", "-d", "airflow"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data # must match the name of the PersistentVolumeClaim defined above
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: melanoma-production
+spec:
+  selector:
+    app: postgres  # must match the label of the deployment defined above
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+
+
+
+

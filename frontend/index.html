@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MelanoCheck — Early Melanoma Detection</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div class="logo">
+                <span class="logo-icon">🔬</span>
+                <span class="logo-text">MelanoCheck</span>
+            </div>
+            <p class="header-sub">AI-Assisted Melanoma Screening Tool, By <strong>THE ONE AND ONLY GREAT DIKSHANK SIHAG</strong></p>
+            <nav class="tab-nav">
+                <button class="tab-btn active" onclick="showTab('screening')">Screening</button>
+                <button class="tab-btn" onclick="showTab('pipeline')">Pipeline Dashboard</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- TAB 1: Screening -->
+        <div id="tab-screening">
+
+            <section class="card upload-card">
+                <h2>Upload Skin Lesion Image</h2>
+                <p class="card-desc">Upload a photo of the skin lesion. Works with low-resolution images from basic mobile cameras.</p>
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-inner" id="dropzone-inner">
+                        <span class="upload-icon">📷</span>
+                        <p>Drag and drop an image here</p>
+                        <p class="or-text">— or —</p>
+                        <label class="btn-upload" for="file-input">Choose Image</label>
+                        <input type="file" id="file-input" accept="image/jpeg,image/png" style="display:none"/>
+                    </div>
+                    <img id="preview-img" class="preview-img hidden" alt="Preview" />
+                </div>
+                <button class="btn-analyse" id="btn-analyse" disabled>Analyse Image</button>
+            </section>
+
+            <section class="card result-card hidden" id="result-card">
+                <div class="result-header" id="result-header">
+                    <span class="result-icon" id="result-icon"></span>
+                    <span class="result-label" id="result-label"></span>
+                </div>
+                <div class="result-details">
+                    <div class="detail-row">
+                        <span class="detail-key">Confidence</span>
+                        <span class="detail-val" id="detail-confidence"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Malignant Probability</span>
+                        <span class="detail-val" id="detail-prob"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Threshold Used</span>
+                        <span class="detail-val" id="detail-threshold"></span>
+                    </div>
+                </div>
+                <div class="recommendation" id="recommendation"></div>
+                <div class="feedback-section">
+                    <p class="feedback-title">Are you a medical professional?</p>
+                    <p class="feedback-desc">If you know the actual diagnosis, please provide feedback to help improve the model.</p>
+                    <div class="feedback-buttons">
+                        <button class="btn-feedback btn-malignant" onclick="submitFeedback('malignant')">▲ Confirm: Malignant</button>
+                        <button class="btn-feedback btn-benign" onclick="submitFeedback('benign')">● Confirm: Benign</button>
+                    </div>
+                    <p class="feedback-status hidden" id="feedback-status"></p>
+                </div>
+                <button class="btn-reset" onclick="resetUI()">Analyse Another Image</button>
+            </section>
+
+            <div class="spinner-overlay hidden" id="spinner">
+                <div class="spinner"></div>
+                <p>Analysing image...</p>
+            </div>
+
+            <div class="error-banner hidden" id="error-banner">
+                <span id="error-message"></span>
+            </div>
+
+            <section class="card status-card">
+                <h3>System Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-dot" id="dot-api"></span>
+                        <span>API Server</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-dot" id="dot-model"></span>
+                        <span>Model</span>
+                    </div>
+                    <div class="status-item">
+                        <a href="http://localhost:5000" target="_blank" class="status-link">📊 MLflow UI</a>
+                    </div>
+                    <div class="status-item">
+                        <a href="http://localhost:3000" target="_blank" class="status-link">📈 Grafana</a>
+                    </div>
+                    <div class="status-item">
+                        <a href="http://localhost:8080" target="_blank" class="status-link">🔧 Airflow</a>
+                    </div>
+                </div>
+                <p class="model-version" id="model-version-text"></p>
+            </section>
+
+        </div>
+
+        <!-- TAB 2: Pipeline Dashboard -->
+        <div id="tab-pipeline" class="hidden">
+
+            <section class="card">
+                <h2>Live Pipeline Metrics</h2>
+                <p class="card-desc">Real-time metrics from the running system. Auto-refreshes every 15 seconds.</p>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-requests">—</div>
+                        <div class="metric-label">Total Requests</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-predictions">—</div>
+                        <div class="metric-label">Predictions</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-feedback">—</div>
+                        <div class="metric-label">Feedback Received</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-drift">—</div>
+                        <div class="metric-label">Drift Score</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-recall">—</div>
+                        <div class="metric-label">Real-World Recall</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-misclass">—</div>
+                        <div class="metric-label">Misclassification Rate</div>
+                    </div>
+                </div>
+                <div class="drift-bar-wrap">
+                    <div class="drift-bar-label">
+                        <span>Drift Score</span>
+                        <span id="drift-bar-pct">—</span>
+                    </div>
+                    <div class="drift-bar-track">
+                        <div class="drift-bar-fill" id="drift-bar-fill" style="width:0%"></div>
+                        <div class="drift-threshold-line" title="Threshold: 20%"></div>
+                    </div>
+                    <div class="drift-bar-labels">
+                        <span>0</span>
+                        <span>Threshold (20%)</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>ML Pipeline Stages</h2>
+                <p class="card-desc">End-to-end pipeline from raw data to serving.</p>
+                <div class="pipeline-stages">
+                    <div class="stage">
+                        <div class="stage-icon">📂</div>
+                        <div class="stage-name">Raw Data</div>
+                        <div class="stage-desc">32×32 images · DVC tracked</div>
+                    </div>
+                    <div class="stage-arrow">→</div>
+                    <div class="stage">
+                        <div class="stage-icon">⚙️</div>
+                        <div class="stage-name">Airflow DAG</div>
+                        <div class="stage-desc">validate → split → preprocess → stats</div>
+                    </div>
+                    <div class="stage-arrow">→</div>
+                    <div class="stage">
+                        <div class="stage-icon">🧠</div>
+                        <div class="stage-name">Training</div>
+                        <div class="stage-desc">3 models · MLflow tracked</div>
+                    </div>
+                    <div class="stage-arrow">→</div>
+                    <div class="stage">
+                        <div class="stage-icon">🏆</div>
+                        <div class="stage-name">Registry</div>
+                        <div class="stage-desc">Champion/Challenger · recall+F1</div>
+                    </div>
+                    <div class="stage-arrow">→</div>
+                    <div class="stage">
+                        <div class="stage-icon">🚀</div>
+                        <div class="stage-name">Serving</div>
+                        <div class="stage-desc">FastAPI · Docker · nginx</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Pipeline Management Tools</h2>
+                <p class="card-desc">Click to open each tool in a new tab.</p>
+                <div class="tool-grid">
+                    <a href="http://localhost:8080" target="_blank" class="tool-card">
+                        <div class="tool-icon">🔧</div>
+                        <div class="tool-name">Airflow</div>
+                        <div class="tool-desc">DAG runs · task logs · scheduling</div>
+                        <div class="tool-url">localhost:8080</div>
+                    </a>
+                    <a href="http://localhost:5000" target="_blank" class="tool-card">
+                        <div class="tool-icon">📊</div>
+                        <div class="tool-name">MLflow</div>
+                        <div class="tool-desc">Experiments · model registry · artifacts</div>
+                        <div class="tool-url">localhost:5000</div>
+                    </a>
+                    <a href="http://localhost:3000" target="_blank" class="tool-card">
+                        <div class="tool-icon">📈</div>
+                        <div class="tool-name">Grafana</div>
+                        <div class="tool-desc">NRT monitoring · drift · recall</div>
+                        <div class="tool-url">localhost:3000</div>
+                    </a>
+                    <a href="http://localhost:9090" target="_blank" class="tool-card">
+                        <div class="tool-icon">🔍</div>
+                        <div class="tool-name">Prometheus</div>
+                        <div class="tool-desc">Raw metrics · query explorer</div>
+                        <div class="tool-url">localhost:9090</div>
+                    </a>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Current Production Model</h2>
+                <div class="model-info-grid">
+                    <div class="model-info-row">
+                        <span class="model-info-key">Model name</span>
+                        <span class="model-info-val" id="pi-model-name">—</span>
+                    </div>
+                    <div class="model-info-row">
+                        <span class="model-info-key">Registry version</span>
+                        <span class="model-info-val" id="pi-model-version">—</span>
+                    </div>
+                    <div class="model-info-row">
+                        <span class="model-info-key">Classification threshold</span>
+                        <span class="model-info-val" id="pi-threshold">—</span>
+                    </div>
+                    <div class="model-info-row">
+                        <span class="model-info-key">Status</span>
+                        <span class="model-info-val" id="pi-status">—</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <footer>
+        <p>⚠️ <strong>Disclaimer:</strong> This tool is for screening purposes only and does not replace professional medical diagnosis. Always consult a qualified dermatologist for any skin concerns.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MelanoCheck — Early Melanoma Detection</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div class="logo">
+                <span class="logo-icon">🔬</span>
+                <span class="logo-text">MelanoCheck</span>
+            </div>
+            <p class="header-sub">AI-Assisted Melanoma Screening Tool, Presented By: THE GREAT AND THE ONLY DIKSHANK SIHAG</p>
+            <nav class="tab-nav">
+                <button class="tab-btn active" onclick="showTab('screening')">Screening</button>
+                <button class="tab-btn" onclick="showTab('pipeline')">Pipeline Dashboard</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- TAB 1: Screening -->
+        <div id="tab-screening">
+
+            <section class="card upload-card">
+                <h2>Upload Skin Lesion Image</h2>
+                <p class="card-desc">Upload a photo of the skin lesion. Works with low-resolution images from basic mobile cameras.</p>
+
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-inner" id="dropzone-inner">
+                        <span class="upload-icon">📷</span>
+                        <p>Drag and drop an image here</p>
+                        <p class="or-text">— or —</p>
+                        <label class="btn-upload" for="file-input">Choose Image</label>
+                        <input type="file" id="file-input" accept="image/jpeg,image/png" style="display:none"/>
+                    </div>
+
+                    <img id="preview-img" class="preview-img hidden" alt="Preview" />
+                </div>
+
+                <button class="btn-analyse" id="btn-analyse" disabled>
+                    Analyse Image
+                </button>
+            </section>
+
+            <section class="card result-card hidden" id="result-card">
+
+                <div class="result-header" id="result-header">
+                    <span class="result-icon" id="result-icon"></span>
+                    <span class="result-label" id="result-label"></span>
+                </div>
+
+                <div class="result-details">
+                    <div class="detail-row">
+                        <span class="detail-key">Confidence</span>
+                        <span class="detail-val" id="detail-confidence"></span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-key">Malignant Probability</span>
+                        <span class="detail-val" id="detail-prob"></span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-key">Threshold Used</span>
+                        <span class="detail-val" id="detail-threshold"></span>
+                    </div>
+                </div>
+
+                <div class="recommendation" id="recommendation"></div>
+
+                <div class="feedback-section">
+                    <p class="feedback-title">Are you a medical professional?</p>
+                    <p class="feedback-desc">
+                        If you know the actual diagnosis, please provide feedback to help improve the model.
+                    </p>
+
+                    <div class="feedback-buttons">
+                        <button class="btn-feedback btn-malignant"
+                                onclick="submitFeedback('malignant')">
+                            ▲ Confirm: Malignant
+                        </button>
+
+                        <button class="btn-feedback btn-benign"
+                                onclick="submitFeedback('benign')">
+                            ● Confirm: Benign
+                        </button>
+                    </div>
+
+                    <p class="feedback-status hidden" id="feedback-status"></p>
+                </div>
+
+                <button class="btn-reset" onclick="resetUI()">
+                    Analyse Another Image
+                </button>
+
+            </section>
+
+            <div class="spinner-overlay hidden" id="spinner">
+                <div class="spinner"></div>
+                <p>Analysing image...</p>
+            </div>
+
+            <div class="error-banner hidden" id="error-banner">
+                <span id="error-message"></span>
+            </div>
+
+            <section class="card status-card">
+                <h3>System Status</h3>
+
+                <div class="status-grid">
+
+                    <div class="status-item">
+                        <span class="status-dot" id="dot-api"></span>
+                        <span>API Server</span>
+                    </div>
+
+                    <div class="status-item">
+                        <span class="status-dot" id="dot-model"></span>
+                        <span>Model</span>
+                    </div>
+
+                    <div class="status-item">
+                        <a href="http://localhost:5000"
+                           target="_blank"
+                           class="status-link">
+                            📊 MLflow UI
+                        </a>
+                    </div>
+
+                    <div class="status-item">
+                        <a href="http://localhost:3000"
+                           target="_blank"
+                           class="status-link">
+                            📈 Grafana
+                        </a>
+                    </div>
+
+                    <div class="status-item">
+                        <a href="http://localhost:8080"
+                           target="_blank"
+                           class="status-link">
+                            🔧 Airflow
+                        </a>
+                    </div>
+
+                </div>
+
+                <p class="model-version" id="model-version-text"></p>
+            </section>
+
+        </div>
+
+
+        <!-- TAB 2: Pipeline Dashboard -->
+        <div id="tab-pipeline" class="hidden">
+
+            <section class="card">
+                <h2>Live Pipeline Metrics</h2>
+                <p class="card-desc">
+                    Real-time metrics from the running system. Auto-refreshes every 15 seconds.
+                </p>
+
+                <div class="metrics-grid">
+
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-requests">—</div>
+                        <div class="metric-label">Total Requests</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-predictions">—</div>
+                        <div class="metric-label">Predictions</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-feedback">—</div>
+                        <div class="metric-label">Feedback Received</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-drift">—</div>
+                        <div class="metric-label">Drift Score</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-recall">—</div>
+                        <div class="metric-label">Real-World Recall</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-val" id="m-misclass">—</div>
+                        <div class="metric-label">Misclassification Rate</div>
+                    </div>
+
+                </div>
+
+                <div class="drift-bar-wrap">
+
+                    <div class="drift-bar-label">
+                        <span>Drift Score</span>
+                        <span id="drift-bar-pct">—</span>
+                    </div>
+
+                    <div class="drift-bar-track">
+                        <div class="drift-bar-fill"
+                             id="drift-bar-fill"
+                             style="width:0%">
+                        </div>
+
+                        <div class="drift-threshold-line"
+                             title="Threshold: 20%">
+                        </div>
+                    </div>
+
+                    <div class="drift-bar-labels">
+                        <span>0</span>
+                        <span>Threshold (20%)</span>
+                        <span>100%</span>
+                    </div>
+
+                </div>
+            </section>
+
+
+            <section class="card">
+                <h2>ML Pipeline Stages</h2>
+                <p class="card-desc">
+                    End-to-end pipeline from raw data to serving.
+                </p>
+
+                <div class="pipeline-stages">
+
+                    <div class="stage">
+                        <div class="stage-icon">📂</div>
+                        <div class="stage-name">Raw Data</div>
+                        <div class="stage-desc">32×32 images · DVC tracked</div>
+                    </div>
+
+                    <div class="stage-arrow">→</div>
+
+                    <div class="stage">
+                        <div class="stage-icon">⚙️</div>
+                        <div class="stage-name">Airflow DAG</div>
+                        <div class="stage-desc">validate → split → preprocess → stats</div>
+                    </div>
+
+                    <div class="stage-arrow">→</div>
+
+                    <div class="stage">
+                        <div class="stage-icon">🧠</div>
+                        <div class="stage-name">Training</div>
+                        <div class="stage-desc">3 models · MLflow tracked</div>
+                    </div>
+
+                    <div class="stage-arrow">→</div>
+
+                    <div class="stage">
+                        <div class="stage-icon">🏆</div>
+                        <div class="stage-name">Registry</div>
+                        <div class="stage-desc">Champion/Challenger · recall+F1</div>
+                    </div>
+
+                    <div class="stage-arrow">→</div>
+
+                    <div class="stage">
+                        <div class="stage-icon">🚀</div>
+                        <div class="stage-name">Serving</div>
+                        <div class="stage-desc">FastAPI · Docker · nginx</div>
+                    </div>
+
+                </div>
+            </section>
+
+
+            <section class="card">
+                <h2>Pipeline Management Tools</h2>
+                <p class="card-desc">
+                    Click to open each tool in a new tab.
+                </p>
+
+                <div class="tool-grid">
+
+                    <a href="http://localhost:8080"
+                       target="_blank"
+                       class="tool-card">
+                        <div class="tool-icon">🔧</div>
+                        <div class="tool-name">Airflow</div>
+                        <div class="tool-desc">DAG runs · task logs · scheduling</div>
+                        <div class="tool-url">localhost:8080</div>
+                    </a>
+
+                    <a href="http://localhost:5000"
+                       target="_blank"
+                       class="tool-card">
+                        <div class="tool-icon">📊</div>
+                        <div class="tool-name">MLflow</div>
+                        <div class="tool-desc">Experiments · model registry · artifacts</div>
+                        <div class="tool-url">localhost:5000</div>
+                    </a>
+
+                    <a href="http://localhost:3000"
+                       target="_blank"
+                       class="tool-card">
+                        <div class="tool-icon">📈</div>
+                        <div class="tool-name">Grafana</div>
+                        <div class="tool-desc">NRT monitoring · drift · recall</div>
+                        <div class="tool-url">localhost:3000</div>
+                    </a>
+
+                    <a href="http://localhost:9090"
+                       target="_blank"
+                       class="tool-card">
+                        <div class="tool-icon">🔍</div>
+                        <div class="tool-name">Prometheus</div>
+                        <div class="tool-desc">Raw metrics · query explorer</div>
+                        <div class="tool-url">localhost:9090</div>
+                    </a>
+
+                </div>
+            </section>
+
+
+            <section class="card">
+                <h2>Current Production Model</h2>
+
+                <div class="model-info-grid">
+
+                    <div class="model-info-row">
+                        <span class="model-info-key">Model name</span>
+                        <span class="model-info-val" id="pi-model-name">—</span>
+                    </div>
+
+                    <div class="model-info-row">
+                        <span class="model-info-key">Registry version</span>
+                        <span class="model-info-val" id="pi-model-version">—</span>
+                    </div>
+
+                    <div class="model-info-row">
+                        <span class="model-info-key">Classification threshold</span>
+                        <span class="model-info-val" id="pi-threshold">—</span>
+                    </div>
+
+                    <div class="model-info-row">
+                        <span class="model-info-key">Status</span>
+                        <span class="model-info-val" id="pi-status">—</span>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <footer>
+        <p>
+            ⚠️ <strong>Disclaimer:</strong>
+            This tool is for screening purposes only and does not replace professional medical diagnosis.
+            Always consult a qualified dermatologist for any skin concerns.
+        </p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html> -->
