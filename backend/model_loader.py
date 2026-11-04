@@ -22,7 +22,7 @@ from pathlib import Path
 from mlflow.tracking import MlflowClient
 
 from logger import get_logger
-from monitoring import MODEL_INFO, MODEL_LOAD_STATUS
+from monitoring import MODEL_INFO, MODEL_LOAD_STATUS, MODEL_IS_FALLBACK
 
 logger = get_logger("model_loader")
 
@@ -42,6 +42,10 @@ _model_meta = {
     # every upload to img_size x img_size, so this MUST match training.
     # 64 is the fallback for the old simple_cnn runs.
     "img_size": 64,
+    # True when the Production model is the ImageNet fallback (tags/is_fallback
+    # == "true", written by register_pretrained.py). Models from train.py have no
+    # such tag -> False.
+    "is_fallback": False,
 }
 
 
@@ -218,6 +222,15 @@ def _get_threshold_from_run(run_id: str) -> tuple:
     return 0.35, "unknown", 64
 
 
+def _get_is_fallback(run_id: str) -> bool:
+    """Read tags/is_fallback straight from the mlruns folder (same style as above)."""
+    for run_dir in glob.glob(str(Path(_get_mlruns_path()) / "*" / run_id)):
+        tag_file = Path(run_dir) / "tags" / "is_fallback"
+        if tag_file.exists():
+            return tag_file.read_text().strip().lower() == "true"
+    return False
+
+
 def load_model() -> bool:
     """
     Load the Production model from MLflow registry into memory.
@@ -267,6 +280,13 @@ def load_model() -> bool:
         _model_meta["threshold"] = threshold
         _model_meta["name"] = model_name_tag
         _model_meta["img_size"] = img_size
+        _model_meta["is_fallback"] = _get_is_fallback(run_id)
+        MODEL_IS_FALLBACK.set(1 if _model_meta["is_fallback"] else 0)
+        if _model_meta["is_fallback"]:
+            logger.warning(
+                "⚠️ Serving the FALLBACK model (ImageNet EfficientNet-B1 + quick head). "
+                "Copy your efficientnet_b1.pt into data-pvc and re-run the register-b1-model Job."
+            )
         
         # ── Update Prometheus metrics ─────────────────────────────────────
         MODEL_INFO.info({

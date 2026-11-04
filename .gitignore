@@ -1,5 +1,11 @@
 .env
 __pycache__/
 *.pyc
+# model weights are big - don't commit them by accident...
 *.pt
 *.pth
+# ...EXCEPT the fallback model (ImageNet EfficientNet-B1 + trained head, ~26 MB).
+# It's copied into airflow-image and used by register_pretrained.py when your
+# own efficientnet_b1.pt is missing. The ! re-includes a path ignored above.
+!airflow/training/fallback/
+!airflow/training/fallback/*.pt

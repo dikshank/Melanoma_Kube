@@ -138,4 +138,11 @@ MODEL_LOAD_STATUS = Gauge(
     documentation="1 if model is loaded successfully, 0 otherwise"
 )
 
+# 1 = this pod is serving the FALLBACK model (ImageNet B1 + quick head, registered
+# by register_pretrained.py when your own weights were missing). Grafana shows it.
+MODEL_IS_FALLBACK = Gauge(
+    name="melanoma_model_is_fallback",
+    documentation="1 if the loaded model is the ImageNet fallback, 0 if it is a real trained model"
+)
+
 

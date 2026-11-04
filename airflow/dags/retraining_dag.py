@@ -80,6 +80,7 @@ def get_production_config() -> list:
                             "mobilenet_v3_small": "config_v1_mobilenet.yaml",
                             "efficientnet_b0": "config_v1_efficientnet.yaml",
                             "efficientnet_b1": "config_v1_efficientnet_b1.yaml",  # your pretrained B1
+                            "efficientnet_b1_fallback": "config_v1_efficientnet_b1.yaml",  # ImageNet fallback -> retrain a full B1
                             "simplecnn": "config_v1_simplecnn.yaml",
                             "simple_cnn": "config_v1_simplecnn.yaml",
                         }

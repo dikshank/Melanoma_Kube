@@ -157,6 +157,10 @@ function displayResult(data) {
     document.getElementById("recommendation").textContent =
         data.recommendation;
 
+    // is_fallback is always in the /predict response (true / false)
+    document.getElementById("fallback-note")
+        .classList.toggle("hidden", !data.is_fallback);
+
     feedbackStatus.classList.add("hidden");
     feedbackStatus.textContent = "";
 
@@ -280,7 +284,22 @@ async function checkSystemStatus() {
             const data =
                 await res.json();
 
-            if (data.model_loaded) {
+            // is_fallback is always in the /ready response (true / false)
+            const fallbackBanner =
+                document.getElementById("fallback-banner");
+            fallbackBanner.classList.toggle(
+                "hidden", !(data.model_loaded && data.is_fallback));
+
+            if (data.model_loaded && data.is_fallback) {
+
+                // loaded, but it's the ImageNet fallback -> yellow, not blue
+                dotModel.className =
+                    "status-dot yellow";
+
+                modelVersionText.textContent =
+                    `Model: ${data.model_name || "unknown"} (FALLBACK) | Version: ${data.model_version || "?"}`;
+
+            } else if (data.model_loaded) {
 
                 dotModel.className =
                     "status-dot green";

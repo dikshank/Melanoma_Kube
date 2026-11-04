@@ -38,6 +38,17 @@ RUN pip install --no-cache-dir \
     pyyaml \
     psycopg2-binary 
 
+# ── Bake the ORIGINAL EfficientNet-B1 ImageNet weights into the image ────────
+# Used by:
+#   * training/src/register_pretrained.py -> builds the FALLBACK model when your
+#     own efficientnet_b1.pt is missing (ImageNet backbone + small trained head)
+#   * train.py with config_v1_efficientnet_b1.yaml (retraining starts from them)
+# Downloading at BUILD time means pods never need internet for this, and every
+# pod built from this image has identical weights. ~31 MB.
+# TORCH_HOME is where torchvision looks for (and stores) downloaded weights.
+ENV TORCH_HOME=/opt/airflow/.torch_cache
+RUN python -c "from torchvision.models import efficientnet_b1, EfficientNet_B1_Weights; efficientnet_b1(weights=EfficientNet_B1_Weights.DEFAULT)"
+
 COPY . .
 # we will use postgre because sqlite3.OperationalError: database gets locked
 # This hit during a scheduler heartbeat write while your trigger_training task was mid-execution. SQLite allows only one writer at a time for the whole database file — there's no real concurrency control beyond a blocking lock. When your scheduler tried to write a heartbeat at the same moment something else (another task, the webserver, the scheduler's own internal polling) was writing, one of them got locked out, timed out, and errored. That cascaded: the heartbeat failure triggered a SIGTERM to your task, which killed a legitimate training job mid-flight, and Airflow then flagged it as a "zombie" task.

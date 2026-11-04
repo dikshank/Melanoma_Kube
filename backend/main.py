@@ -377,7 +377,11 @@ async def predict_endpoint(file: UploadFile = File(...)):
             drift,
         )
 
-        return PredictResponse(image_id=image_id, **result)
+        return PredictResponse(
+            image_id=image_id,
+            is_fallback=meta.get("is_fallback", False),   # UI adds a warning to the result
+            **result,
+        )
 
     except ValueError as e:
         ERROR_COUNTER.labels(endpoint="/predict", error_type="invalid_image").inc()
@@ -449,6 +453,7 @@ async def ready():
         model_name=meta.get("name"),
         model_version=meta.get("version"),
         classification_threshold=meta.get("threshold"),
+        is_fallback=meta.get("is_fallback", False),
         status="ready",
     )
 

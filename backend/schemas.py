@@ -36,6 +36,8 @@ class PredictResponse(BaseModel):
         ...,
         example="High risk detected. Please consult a dermatologist immediately."
     )
+    # Always present. True = prediction came from the fallback model -> UI warns.
+    is_fallback: bool = Field(False, example=False)
 
 
 class HealthResponse(BaseModel):
@@ -65,6 +67,9 @@ class ReadyResponse(BaseModel):
     model_name: Optional[str] = Field(None, example="mobilenet_v3_small")
     model_version: Optional[str] = Field(None, example="3")
     classification_threshold: Optional[float] = Field(None, example=0.35)
+    # Always present (False when no model / real model). UI shows a yellow
+    # banner + yellow status dot when True.
+    is_fallback: bool = Field(False, example=False)
     status: str = Field(..., example="ready")
 class FeedbackRequest(BaseModel):
     """

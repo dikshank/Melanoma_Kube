@@ -18,6 +18,11 @@
 #   backend pods mount mlruns-pvc at /mlruns <----------------------------+
 #   (their next /ready probe calls check_and_reload() and loads it, no restart needed)
 #
+# If efficientnet_b1.pt is MISSING the Job does not fail: when nothing is in
+# Production yet it registers a FALLBACK (ImageNet B1 + small trained head,
+# tagged is_fallback=true -> yellow banner in the UI). It never replaces an
+# existing Production model. Copy your real .pt in and re-run to replace it.
+#
 # Re-running is safe: if the same file (sha256) is already in Production it exits.
 # Jobs are immutable, so to re-run:  kubectl delete job register-b1-model -n melanoma-production
 apiVersion: batch/v1
@@ -53,8 +58,7 @@ spec:
             # - --threshold=0.5      # uncomment to force a threshold instead of tuning on val
           volumeMounts:
             - name: data-vol
-              mountPath: /opt/airflow/data
-              readOnly: true
+              mountPath: /opt/airflow/data   # read-write: a newly built fallback is saved to data/seed_model/
             - name: mlruns-vol
               mountPath: /opt/airflow/mlruns
           resources:

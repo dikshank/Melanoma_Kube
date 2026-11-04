@@ -3,7 +3,7 @@
   "title": "Melanoma Inference (Kubernetes)",
   "uid": "melanoma-k8s",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "time": {
     "from": "now-1h",
@@ -30,6 +30,85 @@
   },
   "panels": [
     {
+      "id": 100,
+      "type": "stat",
+      "title": "Fallback model active",
+      "description": "Backend pods serving the ImageNet FALLBACK model (is_fallback=true). Should be 0: copy your efficientnet_b1.pt into data-pvc and re-run the register-b1-model Job.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "expr": "sum(melanoma_model_is_fallback) or vector(0)",
+          "legendFormat": "pods on fallback"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "No - real model",
+                  "color": "green",
+                  "index": 0
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000,
+                "result": {
+                  "text": "YES - fallback model",
+                  "color": "yellow",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
       "id": 1,
       "type": "stat",
       "title": "Backend pods with model loaded",
@@ -40,7 +119,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 4,
         "w": 6,
         "h": 4
       },
@@ -80,7 +159,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 0,
+        "y": 4,
         "w": 6,
         "h": 4
       },
@@ -120,7 +199,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 4,
         "w": 6,
         "h": 4
       },
@@ -162,7 +241,7 @@
       },
       "gridPos": {
         "x": 18,
-        "y": 0,
+        "y": 4,
         "w": 6,
         "h": 4
       },
@@ -202,7 +281,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 8,
         "w": 8,
         "h": 8
       },
@@ -236,7 +315,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 4,
+        "y": 8,
         "w": 8,
         "h": 8
       },
@@ -268,7 +347,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 4,
+        "y": 8,
         "w": 8,
         "h": 8
       },
@@ -302,7 +381,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 16,
         "w": 8,
         "h": 8
       },
@@ -334,7 +413,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 12,
+        "y": 16,
         "w": 8,
         "h": 8
       },
@@ -388,7 +467,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 12,
+        "y": 16,
         "w": 8,
         "h": 8
       },
@@ -420,7 +499,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 20,
+        "y": 24,
         "w": 12,
         "h": 8
       },
@@ -452,7 +531,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 20,
+        "y": 24,
         "w": 12,
         "h": 8
       },

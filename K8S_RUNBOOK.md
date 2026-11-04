@@ -42,7 +42,8 @@ kubectl cp data/processed      melanoma-production/pvc-loader:/data/processed
 kubectl cp data/baseline_stats melanoma-production/pvc-loader:/data/baseline_stats
 ```
 
-Copy **your B1 file**. Put it in the repo folder first, then copy it to exactly this name:
+Copy **your B1 file**. Put it in the repo folder first, then copy it to exactly this name.
+This step is optional: without it, step 4 registers a **fallback model** and the UI shows a yellow warning banner.
 
 ```bat
 kubectl exec pvc-loader -n melanoma-production -- mkdir -p /data/seed_model
@@ -84,6 +85,11 @@ kubectl logs -f job/register-b1-model -n melanoma-production
 
 You should see `Loaded ...`, `Sanity check OK: input 1x3x224x224 -> output (1, 2)`, the val/test metrics, and then
 `✅ efficientnet_b1 registered as melanoma_classifier v1 and moved to Production`.
+
+**No B1 file?** You'll instead see `⚠️ Weights file not found` followed by `efficientnet_b1_fallback registered ... [FALLBACK ...]`.
+That's the ImageNet EfficientNet-B1 with a head trained in seconds on your train images. The app works, the model dot turns yellow, and a banner warns users.
+To switch to your real model later, copy the `.pt` in (step 2), then delete and re-apply the Job. Within about 30 seconds the backend picks it up and the banner disappears.
+The fallback never overwrites a real model. To keep the generated fallback in git, see `airflow/training/fallback/README.md`.
 
 If it fails, read the error, fix it, then `kubectl delete job register-b1-model -n melanoma-production` and apply again.
 Jobs are immutable, so they have to be deleted before they can be re-run.

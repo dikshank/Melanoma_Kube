@@ -27,6 +27,14 @@
         <!-- TAB 1: Screening -->
         <div id="tab-screening">
 
+            <!-- Shown by checkSystemStatus() when /ready says is_fallback: true -->
+            <div class="fallback-banner hidden" id="fallback-banner" role="alert">
+                <strong>⚠️ Fallback model active.</strong>
+                The trained EfficientNet-B1 is not loaded, so results come from a basic
+                ImageNet model with much lower accuracy. Use for demo only &mdash;
+                do not rely on these results.
+            </div>
+
             <section class="card upload-card">
                 <h2>Upload Skin Lesion Image</h2>
                 <p class="card-desc">Upload a photo of the skin lesion. Works with low-resolution images from basic mobile cameras.</p>
@@ -63,6 +71,10 @@
                     </div>
                 </div>
                 <div class="recommendation" id="recommendation"></div>
+                <!-- Shown by displayResult() when /predict says is_fallback: true -->
+                <div class="fallback-note hidden" id="fallback-note">
+                    ⚠️ This result is from the fallback model and may be unreliable.
+                </div>
                 <div class="feedback-section">
                     <p class="feedback-title">Are you a medical professional?</p>
                     <p class="feedback-desc">If you know the actual diagnosis, please provide feedback to help improve the model.</p>

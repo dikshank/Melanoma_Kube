@@ -34,6 +34,31 @@ Supported .pt formats (you weren't sure which one you have, so all are handled)
     4. Checkpoint dict     torch.save({"model_state_dict": ..., "epoch": ...}, "x.pt")
        (also "state_dict" / "model" keys, and "module." prefixes from DataParallel)
 
+FALLBACK (when your .pt is missing)
+    Instead of failing, the Job registers a clearly-labelled FALLBACK model so
+    the app still runs:  tags/is_fallback = "true", model_name =
+    "efficientnet_b1_fallback". The backend passes is_fallback to the UI, which
+    shows a yellow "fallback model" banner.
+
+    The fallback is EfficientNet-B1 with the ORIGINAL ImageNet weights (baked
+    into airflow-image by the Dockerfile) + a new 2-class head. A bare ImageNet
+    head would output 1000 ImageNet classes, and a random 2-class head would be
+    a coin flip, so the head is trained here in a few seconds:
+        frozen B1 backbone -> 1280-d features for every train image (once)
+        -> train only Linear(1280, 2) on those features (class weights 1:2)
+    It's weak (backbone never adapted to skin lesions) but it's a real model.
+
+    Where the fallback comes from, in order:
+      1. airflow/training/fallback/efficientnet_b1_fallback.pt   (committed in
+         git - .gitignore has an exception - and copied into the image)
+      2. otherwise: build it as above, and save it to
+         /opt/airflow/data/seed_model/efficientnet_b1_fallback.pt so you can
+         `kubectl cp` it out and commit it as (1) for next time.
+
+    Safety rule: the fallback is ONLY promoted if nothing is in Production yet.
+    It never replaces your real B1 or a retrained model. Registering your real
+    B1 later always replaces the fallback.
+
 Usage
     python training/src/register_pretrained.py \
         --weights /opt/airflow/data/seed_model/efficientnet_b1.pt \
@@ -68,6 +93,9 @@ logger = logging.getLogger("register_pretrained")
 
 REGISTERED_MODEL_NAME = "melanoma_classifier"   # must match backend/model_loader.py
 NUM_CLASSES = 2                                 # 0 = benign, 1 = malignant
+FALLBACK_MODEL_NAME = "efficientnet_b1_fallback"
+# committed copy, inside the image at /opt/airflow/training/fallback/
+BUNDLED_FALLBACK = Path(__file__).resolve().parents[1] / "fallback" / "efficientnet_b1_fallback.pt"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -180,6 +208,67 @@ def already_registered(client: MlflowClient, digest: str) -> bool:
     return False
 
 
+def production_exists(client: MlflowClient) -> bool:
+    try:
+        return bool(client.get_latest_versions(REGISTERED_MODEL_NAME, stages=["Production"]))
+    except Exception:
+        return False   # registered model doesn't exist yet
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fallback model: ImageNet EfficientNet-B1 + head trained on our features
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _extract_features(backbone: nn.Module, manifest: Path, img_size: int):
+    """Run every image through the frozen backbone once -> (N, 1280) features."""
+    # split="val" = no augmentation, just resize + ImageNet normalisation
+    ds = MelanomaDataset(str(manifest), img_size=img_size, split="val")
+    dl = DataLoader(ds, batch_size=32, shuffle=False, num_workers=0)
+    feats, labels = [], []
+    with torch.no_grad():
+        for x, y in dl:
+            f = backbone.avgpool(backbone.features(x))   # same path as EfficientNet.forward
+            feats.append(torch.flatten(f, 1))
+            labels.append(y)
+    return torch.cat(feats), torch.cat(labels)
+
+
+def build_fallback(img_size: int, manifest_dir: Path, epochs: int = 300) -> nn.Module:
+    """EfficientNet-B1 (ImageNet) with a 2-class head trained on the train split."""
+    from torchvision.models import EfficientNet_B1_Weights
+
+    train_manifest = manifest_dir / "train_manifest.csv"
+    if not train_manifest.exists():
+        sys.exit(f"Can't build fallback: {train_manifest} missing. Copy data/processed "
+                 f"into data-pvc first (K8S_RUNBOOK.md step 2) or run the data pipeline DAG.")
+
+    # Loaded from TORCH_HOME (baked into the image) - no internet needed
+    model = models.efficientnet_b1(weights=EfficientNet_B1_Weights.DEFAULT).eval()
+    for prm in model.parameters():
+        prm.requires_grad = False
+
+    logger.info("Fallback: extracting ImageNet features for %s ...", train_manifest)
+    X, y = _extract_features(model, train_manifest, img_size)
+    logger.info("Fallback: %d train images -> features %s", len(y), tuple(X.shape))
+
+    torch.manual_seed(42)                                   # reproducible head
+    head = nn.Linear(X.shape[1], NUM_CLASSES)
+    opt = torch.optim.Adam(head.parameters(), lr=1e-3, weight_decay=1e-4)
+    # same class weights as the training configs: missing a melanoma costs more
+    loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0]))
+    for epoch in range(epochs):                             # full-batch: 164 rows, takes seconds
+        opt.zero_grad()
+        loss = loss_fn(head(X), y)
+        loss.backward()
+        opt.step()
+    logger.info("Fallback: head trained, final loss %.4f", loss.item())
+
+    model.classifier[1] = head
+    for prm in model.parameters():
+        prm.requires_grad = False
+    return model.eval()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -195,21 +284,47 @@ def main():
     p.add_argument("--manifest-dir", default="data/processed/v1/manifests", type=Path)
     p.add_argument("--experiment", default="pretrained-models")
     p.add_argument("--no-promote", action="store_true", help="register only, don't move to Production")
+    p.add_argument("--fallback-export", type=Path,
+                   default=Path("/opt/airflow/data/seed_model/efficientnet_b1_fallback.pt"),
+                   help="where a freshly built fallback is saved so you can commit it")
     args = p.parse_args()
-
-    if not args.weights.exists():
-        sys.exit(f"Weights file not found: {args.weights}\n"
-                 f"Copy it in first (see K8S_RUNBOOK.md, step 'Load data + model').")
 
     mlflow.set_tracking_uri(args.mlruns)
     client = MlflowClient()
 
-    digest = sha256_of(args.weights)
-    if already_registered(client, digest):
-        return  # Job is safe to re-run
+    # ── Decide: real model or fallback ────────────────────────────────────
+    is_fallback = not args.weights.exists()
+    if is_fallback:
+        logger.warning("⚠️  Weights file not found: %s", args.weights)
+        if production_exists(client):
+            # a real/retrained model (or an earlier fallback) is already serving
+            logger.info("A Production model already exists - keeping it, no fallback needed.")
+            return
+        logger.warning("⚠️  No Production model either -> registering the FALLBACK model "
+                       "(the UI will show a warning banner).")
+        args.model_name = FALLBACK_MODEL_NAME
+        if BUNDLED_FALLBACK.exists():
+            logger.info("Using committed fallback: %s", BUNDLED_FALLBACK)
+            model = load_any_checkpoint(BUNDLED_FALLBACK)
+            digest = sha256_of(BUNDLED_FALLBACK)
+        else:
+            model = build_fallback(args.img_size, args.manifest_dir)
+            try:
+                args.fallback_export.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), args.fallback_export)
+                digest = sha256_of(args.fallback_export)
+                logger.info("Saved fallback to %s - copy it to airflow/training/fallback/ "
+                            "and commit it to skip this step next time.", args.fallback_export)
+            except OSError as e:          # e.g. data-pvc mounted read-only
+                logger.warning("Could not save fallback (%s) - continuing anyway", e)
+                digest = "built-in-job"
+    else:
+        digest = sha256_of(args.weights)
+        if already_registered(client, digest):
+            return  # Job is safe to re-run
+        model = load_any_checkpoint(args.weights)
 
-    # ── Load + sanity check ───────────────────────────────────────────────
-    model = load_any_checkpoint(args.weights)
+    # ── Sanity check ──────────────────────────────────────────────────────
     with torch.no_grad():
         out = model(torch.zeros(1, 3, args.img_size, args.img_size))
     if out.shape != (1, NUM_CLASSES):
@@ -237,13 +352,16 @@ def main():
             "img_size": args.img_size,          # <- backend reads this
             "best_threshold": threshold,        # <- backend reads this
             "num_classes": NUM_CLASSES,
-            "source": "pretrained_file",
+            "source": "imagenet_fallback" if is_fallback else "pretrained_file",
         })
         mlflow.set_tags({
             "model_name": args.model_name,      # <- backend + retraining DAG read this
             "experiment_type": "pretrained",
-            "weights_file": args.weights.name,
+            "weights_file": "efficientnet_b1_fallback.pt" if is_fallback else args.weights.name,
             "weights_sha256": digest,           # makes the Job idempotent
+            # Always written, "true" or "false". backend/model_loader.py reads it and
+            # /ready + /predict always return is_fallback -> yellow banner in the UI.
+            "is_fallback": "true" if is_fallback else "false",
         })
         for split, res in (("val", val), ("test", test)):
             if res is None:
@@ -271,8 +389,9 @@ def main():
         stage="Production",
         archive_existing_versions=True,
     )
-    logger.info("✅ %s registered as %s v%s and moved to Production (run_id=%s)",
-                args.model_name, REGISTERED_MODEL_NAME, version, run_id)
+    logger.info("✅ %s registered as %s v%s and moved to Production (run_id=%s)%s",
+                args.model_name, REGISTERED_MODEL_NAME, version, run_id,
+                "  [FALLBACK - copy your efficientnet_b1.pt in and re-run this Job]" if is_fallback else "")
 
 
 if __name__ == "__main__":

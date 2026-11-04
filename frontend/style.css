@@ -277,6 +277,30 @@ main {
 /* Colorblind-friendly: blue=online, orange=offline */
 .status-dot.green { background: #0077bb; box-shadow: 0 0 0 2px #0077bb22; }
 .status-dot.red   { background: #ee7733; box-shadow: 0 0 0 2px #ee773322; }
+/* yellow = model loaded but it's the fallback (the banner carries the meaning in text too) */
+.status-dot.yellow { background: #ccbb44; box-shadow: 0 0 0 2px #ccbb4444; }
+
+/* ── Fallback model warnings ──────────────────────────────── */
+.fallback-banner {
+    background: #fff8db;
+    color: #6b5800;
+    border: 1px solid #ccbb44;
+    border-left: 5px solid #ccbb44;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 1rem;
+}
+.fallback-note {
+    margin-top: 0.8rem;
+    padding: 0.5rem 0.8rem;
+    background: #fff8db;
+    color: #6b5800;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
 .status-link { color: var(--teal); text-decoration: none; font-weight: 500; }
 .status-link:hover { text-decoration: underline; }
 .model-version { font-size: 0.8rem; color: var(--gray-500); }
