@@ -26,6 +26,9 @@ spec:
         - name: mlruns-vol # nickname for the volume used only in this deployment
           persistentVolumeClaim:
             claimName: mlruns-pvc # This is the name of the PersistentVolumeClaim that will be used to create the volume. This is important because it allows the backend service to access the mlruns data that is shared with other services.
+        - name: data-vol   # ADDED: baseline stats for drift detection live on data-pvc (written by the data pipeline DAG)
+          persistentVolumeClaim:
+            claimName: data-pvc
         - name: logs-vol
           persistentVolumeClaim:
             claimName: logs-pvc # This is the name of the PersistentVolumeClaim that will be used to create the volume. This is important because it allows the backend service to access the logs data that is shared with other services.
@@ -33,6 +36,7 @@ spec:
       containers:
         - name: backend
           image: backend-image:v1
+          imagePullPolicy: IfNotPresent   # image is built inside minikube, never pull from a registry
           ports:
             - containerPort: 8000 # This is just decorative and is used to indicate that the backend service will be listening on port 8000. This is important because it allows other services to know which port to use when communicating with the backend service.
           env:
@@ -50,6 +54,18 @@ spec:
               mountPath: /app/logs # This is the path inside the container where the logs data will be mounted. This is important because it allows the backend service to access the logs data that is shared with other services.
                                    # The backend writes feedback data to /app/logs/feedback_data so we don't need a seperate mount for that. And same with FEEDBACK_LOG_PATH, RETRAINING_FLAG_PATH, PENDING_FEEDBACK_DIR, BASELINE_STATS_PATH
               
+            - name: data-vol   # ADDED: without this BASELINE_STATS_PATH doesn't exist -> "Drift detection disabled"
+              mountPath: /app/data
+              readOnly: true
+
+          resources:          # ADDED: torch + a 224x224 EfficientNet-B1 needs ~600-900Mi per pod
+            requests:
+              cpu: "250m"
+              memory: "768Mi"
+            limits:
+              cpu: "1"
+              memory: "1536Mi"
+
           livenessProbe:
             httpGet:
               path: /health
@@ -62,3 +78,40 @@ spec:
               port: 8000
             initialDelaySeconds: 30
             periodSeconds: 30
+            # /ready now returns 503 while no Production model is loaded, so the pod
+            # stays out of the Service endpoints until register-b1-model (or a
+            # training run) puts a model in the registry. Each /ready call also
+            # runs check_and_reload(), which is how a newly promoted model is
+            # picked up without restarting pods (within ~30s).
+
+---
+# ==============================================================================
+# ADDED: backend Service
+# ==============================================================================
+# Without this Service the frontend crashed with
+#   nginx: [emerg] host not found in upstream "backend"
+# because nginx.conf does `proxy_pass http://backend:8000`. The Service's NAME
+# is what makes the DNS name: backend -> backend.melanoma-production.svc.cluster.local
+#
+#   frontend pod (nginx) --http://backend:8000--> [Service backend, ClusterIP]
+#        --kube-proxy picks one of the 3 Ready pods--> backend pod :8000
+#
+# NOTE (3 replicas): each pod keeps its own in-memory feedback counts / drift
+# window / Prometheus counters. Files (pending_feedback/, retrain flag) are on
+# the shared logs-pvc, so /predict on pod A + /feedback on pod B still works,
+# but real_world_recall etc. are per-pod -> sum/avg them in Grafana.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend           # must be exactly "backend" (nginx.conf + Prometheus use it)
+  namespace: melanoma-production
+  labels:
+    app: backend
+spec:
+  type: ClusterIP         # internal only; the outside world comes in via frontend/ngrok
+  selector:
+    app: backend          # matches template.metadata.labels above
+  ports:
+    - name: http
+      port: 8000          # port other pods call
+      targetPort: 8000    # port uvicorn listens on in the container

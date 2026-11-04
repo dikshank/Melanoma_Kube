@@ -32,7 +32,7 @@ from PIL import Image
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from starlette.responses import Response
+from starlette.responses import Response, JSONResponse
 
 from logger import get_logger
 from model_loader import load_model, get_model, get_model_meta, check_and_reload
@@ -335,7 +335,12 @@ async def predict_endpoint(file: UploadFile = File(...)):
         # ── Run inference ─────────────────────────────────────────────────
         meta = get_model_meta()
         result = predict(
-            model=model, image_bytes=image_bytes, threshold=meta["threshold"]
+            model=model,
+            image_bytes=image_bytes,
+            threshold=meta["threshold"],
+            # resize to the size this model was trained on (224 for the B1 model,
+            # 64 for the old simple_cnn) instead of a hard-coded 64
+            img_size=meta.get("img_size", 64),
         )
 
         # ── Drift detection ───────────────────────────────────────────────
@@ -422,12 +427,21 @@ async def ready():
     REQUEST_COUNT.labels(endpoint="/ready", method="GET", status_code="200").inc()
 
     if model is None:
-        return ReadyResponse(
-            model_loaded=False,
-            model_name=None,
-            model_version=None,
-            classification_threshold=None,
-            status="not_ready",
+        # Return HTTP 503 (not 200) when no model is loaded.
+        # The Kubernetes readinessProbe only looks at the status code: with a 200
+        # the pod would be marked Ready and the backend Service would send
+        # /predict traffic to a pod that can only answer "503 model not loaded".
+        # With 503 the pod is removed from the Service endpoints until a model
+        # appears in the registry (check_and_reload() above picks it up).
+        return JSONResponse(
+            status_code=503,
+            content=ReadyResponse(
+                model_loaded=False,
+                model_name=None,
+                model_version=None,
+                classification_threshold=None,
+                status="not_ready",
+            ).model_dump(),
         )
 
     return ReadyResponse(

@@ -27,7 +27,8 @@ import torch.nn as nn
 from torchvision import models
 from torchvision.models import (
     MobileNet_V3_Small_Weights,
-    EfficientNet_B0_Weights
+    EfficientNet_B0_Weights,
+    EfficientNet_B1_Weights,   # added for the custom EfficientNet-B1 model
 )
 
 logging.basicConfig(
@@ -36,7 +37,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("model")
 
-SUPPORTED_MODELS = ["mobilenet_v3_small", "efficientnet_b0", "simple_cnn"]
+SUPPORTED_MODELS = ["mobilenet_v3_small", "efficientnet_b0", "efficientnet_b1", "simple_cnn"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +189,45 @@ def get_efficientnet_b0(num_classes: int, freeze_base: bool) -> nn.Module:
     return model
 
 
+def get_efficientnet_b1(num_classes: int, freeze_base: bool) -> nn.Module:
+    """
+    Load EfficientNet-B1 with pretrained ImageNet weights.
+
+    This is the architecture of the custom B1 model registered by
+    training/src/register_pretrained.py. Its native input size is 240x240,
+    but this project trains/serves it at 224x224 (img_size is stored in the
+    MLflow run params so the backend resizes uploads to the same size).
+
+    Layout (same as B0, only wider/deeper):
+        model.features    -> convolutional backbone (9 blocks)
+        model.classifier  -> Sequential(Dropout(0.2), Linear(1280, num_classes))
+
+    Args:
+        num_classes (int): Number of output classes.
+        freeze_base (bool): If True, freeze all base layers except classifier.
+
+    Returns:
+        nn.Module: EfficientNet-B1 model.
+    """
+    model = models.efficientnet_b1(weights=EfficientNet_B1_Weights.DEFAULT)
+
+    if freeze_base:
+        for param in model.features.parameters():
+            param.requires_grad = False
+        logger.info("EfficientNet-B1: base frozen, training head only")
+
+    # classifier[1] is the final Linear layer (1280 -> 1000 for ImageNet).
+    # Replace it with a fresh layer that outputs our 2 classes.
+    in_features = model.classifier[1].in_features
+    model.classifier[1] = nn.Linear(in_features, num_classes)
+
+    logger.info(
+        "EfficientNet-B1 loaded | freeze_base=%s | out_classes=%d",
+        freeze_base, num_classes
+    )
+    return model
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Factory
 # ─────────────────────────────────────────────────────────────────────────────
@@ -227,6 +267,9 @@ def get_model(
     elif model_name == "efficientnet_b0":
         return get_efficientnet_b0(num_classes, freeze_base)
 
+    elif model_name == "efficientnet_b1":
+        return get_efficientnet_b1(num_classes, freeze_base)
+
     elif model_name == "simple_cnn":
         return get_simple_cnn(num_classes, img_size)
 
@@ -253,7 +296,8 @@ def unfreeze_last_layers(
         logger.info("simple_cnn: no layers to unfreeze (trained from scratch)")
         return model
 
-    if model_name in ["mobilenet_v3_small", "efficientnet_b0"]:
+    # B0 and B1 share the same "features" layout, so the same unfreeze logic works
+    if model_name in ["mobilenet_v3_small", "efficientnet_b0", "efficientnet_b1"]:
         layers = list(model.features.children())
         for layer in layers[-num_layers:]:
             for param in layer.parameters():

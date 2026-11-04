@@ -79,6 +79,7 @@ def get_production_config() -> list:
                         config_map = {
                             "mobilenet_v3_small": "config_v1_mobilenet.yaml",
                             "efficientnet_b0": "config_v1_efficientnet.yaml",
+                            "efficientnet_b1": "config_v1_efficientnet_b1.yaml",  # your pretrained B1
                             "simplecnn": "config_v1_simplecnn.yaml",
                             "simple_cnn": "config_v1_simplecnn.yaml",
                         }

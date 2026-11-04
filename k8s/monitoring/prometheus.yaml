@@ -1,0 +1,186 @@
+# ==============================================================================
+# Prometheus  —  pulls (scrapes) metrics every 15s and stores them
+# ==============================================================================
+# Prometheus is PULL-based: it calls other pods, nobody pushes to it.
+#
+#   prometheus --GET statsd-exporter:9102/metrics--> statsd-exporter <--UDP 8125-- airflow pods
+#   prometheus --GET <each backend POD IP>:8000/metrics--> backend pod 1, 2, 3
+#   grafana    --PromQL over http://prometheus:9090--> prometheus
+#
+# Why backend pods are discovered individually (kubernetes_sd_configs) instead
+# of scraping "backend:8000": the Service load-balances, so every scrape would
+# hit a random pod and the counters would jump between 3 different values.
+# With pod discovery each pod is its own target (label `pod`), and Grafana can
+# sum() across them. Discovery needs permission to list pods -> the
+# ServiceAccount + Role + RoleBinding below (RBAC).
+#
+# Open it:  kubectl port-forward svc/prometheus 9090:9090 -n melanoma-production
+#           -> http://localhost:9090/targets  (all targets should be UP)
+
+# ── RBAC: let Prometheus list pods in this namespace ─────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: melanoma-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role                      # Role = this namespace only (ClusterRole = whole cluster)
+metadata:
+  name: prometheus-pod-reader
+  namespace: melanoma-production
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-pod-reader
+  namespace: melanoma-production
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: melanoma-production
+roleRef:
+  kind: Role
+  name: prometheus-pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+# ── Config (k8s version of prometheus/prometheus.yml) ────────────────────────
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: melanoma-production
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      # Airflow metrics, translated from StatsD by statsd-exporter.
+      # "statsd-exporter" = Service name (same job_name as docker-compose so the
+      # Airflow Grafana dashboard keeps working).
+      - job_name: "airflow"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["statsd-exporter:9102"]
+
+      # FastAPI backend - one target per pod (see header comment).
+      - job_name: "melanoma-backend"
+        metrics_path: /metrics
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["melanoma-production"]
+        relabel_configs:
+          # keep only pods labelled app=backend
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: backend
+            action: keep
+          # keep only the container port 8000 (uvicorn)
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: "8000"
+            action: keep
+          # add readable labels: pod="backend-deployment-xxxx", namespace=...
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+
+      - job_name: "prometheus"
+        static_configs:
+          - targets: ["localhost:9090"]
+
+# ── Storage for the time-series DB (like the prometheus_data named volume) ───
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+  namespace: melanoma-production
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 2Gi
+
+# ── Prometheus server ────────────────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: melanoma-production
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate            # RWO volume + TSDB lock: never two at once
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus    # the identity the RBAC above grants rights to
+      securityContext:
+        fsGroup: 65534                  # prometheus runs as "nobody"; make the PVC writable for it
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.51.0
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=7d
+            - --web.enable-lifecycle    # allows: curl -X POST localhost:9090/-/reload after editing the ConfigMap
+          ports:
+            - containerPort: 9090
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus     # ConfigMap key prometheus.yml becomes a file here
+            - name: data
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: "100m", memory: "256Mi"}
+            limits: {cpu: "500m", memory: "1Gi"}
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: prometheus-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus            # grafana's datasource URL is http://prometheus:9090
+  namespace: melanoma-production
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090

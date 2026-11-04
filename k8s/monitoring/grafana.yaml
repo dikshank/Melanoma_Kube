@@ -1,0 +1,167 @@
+# ==============================================================================
+# Grafana  —  dashboards on top of Prometheus
+# ==============================================================================
+#   you --port-forward :3000--> grafana --http://prometheus:9090--> prometheus
+#
+# Config comes from FOUR ConfigMaps mounted as folders (same layout as the
+# docker-compose bind mounts):
+#
+#   grafana-datasources   -> /etc/grafana/provisioning/datasources   (defined below)
+#   grafana-providers     -> /etc/grafana/provisioning/dashboards    (defined below)
+#   grafana-dash-melanoma -> /etc/grafana/dashboards/melanoma_dashboards  (created from your JSON)
+#   grafana-dash-airflow  -> /etc/grafana/dashboards/airflow_dashboards   (created from your JSON)
+#
+# The two dashboard ConfigMaps are made straight from the JSON files in the
+# repo (so you keep editing them in one place). Run from the repo root
+# BEFORE applying this file:
+#
+#   kubectl create configmap grafana-dash-melanoma -n melanoma-production ^
+#     --from-file=grafana/dashboards/melanoma_dashboards/ --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl create configmap grafana-dash-airflow -n melanoma-production ^
+#     --from-file=grafana/dashboards/airflow_dashboards/ --dry-run=client -o yaml | kubectl apply -f -
+#
+# (^ is the Windows cmd line-continuation; use \ in bash. The
+#  --dry-run | apply trick makes the command safe to re-run after edits.)
+#
+# Open it:  kubectl port-forward svc/grafana 3000:3000 -n melanoma-production
+#           -> http://localhost:3000   (admin / admin)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: melanoma-production
+data:
+  prometheus.yml: |       # same as grafana/provisioning/datasources/prometheus.yml
+    apiVersion: 1
+    datasources:
+      - name: Prometheus_Melanoma
+        type: prometheus
+        access: proxy                  # Grafana's server calls Prometheus (not your browser)
+        url: http://prometheus:9090    # Service name -> CoreDNS -> ClusterIP
+        isDefault: true
+        editable: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-providers
+  namespace: melanoma-production
+data:
+  dashboard.yml: |        # same as grafana/provisioning/dashboards/dashboard.yml
+    apiVersion: 1
+    providers:
+      - name: "melanoma"
+        orgId: 1
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /etc/grafana/dashboards/melanoma_dashboards
+      - name: "airflow_dashboard"
+        orgId: 1                       # (was "orgID" in the compose version - key is orgId)
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /etc/grafana/dashboards/airflow_dashboards
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data          # users, stars, UI-made changes (like the grafana_data volume)
+  namespace: melanoma-production
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: melanoma-production
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        fsGroup: 472              # grafana's uid/gid; makes the PVC writable for it
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.0
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin          # local minikube only; use a Secret anywhere real
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: providers
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dash-melanoma
+              mountPath: /etc/grafana/dashboards/melanoma_dashboards
+            - name: dash-airflow
+              mountPath: /etc/grafana/dashboards/airflow_dashboards
+            - name: data
+              mountPath: /var/lib/grafana
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: "50m", memory: "128Mi"}
+            limits: {cpu: "300m", memory: "512Mi"}
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: providers
+          configMap:
+            name: grafana-providers
+        - name: dash-melanoma
+          configMap:
+            name: grafana-dash-melanoma   # created with kubectl create configmap (see top)
+        - name: dash-airflow
+          configMap:
+            name: grafana-dash-airflow
+        - name: data
+          persistentVolumeClaim:
+            claimName: grafana-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: melanoma-production
+spec:
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

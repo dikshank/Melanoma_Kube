@@ -1,0 +1,69 @@
+# ==============================================================================
+# register-b1-model  —  one-time Job: put YOUR EfficientNet-B1 into Production
+# ==============================================================================
+# Problem it solves: mlruns-pvc starts empty, so the backend finds no
+# "Production" model and /ready keeps returning 503 (pods never become Ready).
+#
+# What it does (airflow/training/src/register_pretrained.py):
+#   1. loads /opt/airflow/data/seed_model/efficientnet_b1.pt (any .pt format)
+#   2. checks it outputs 2 logits for a 1x3x224x224 input
+#   3. evaluates on the val/test manifests -> tunes the malignant threshold and
+#      logs val_recall / val_f1 (a retrained model must beat these to replace it)
+#   4. logs it to MLflow, registers it as melanoma_classifier, moves it to
+#      Production with params img_size=224, best_threshold, tag model_name
+#
+# Data flow:
+#   data-pvc   (/opt/airflow/data)   --read-->  this Job  --write-->  mlruns-pvc (/opt/airflow/mlruns)
+#                                                                         |
+#   backend pods mount mlruns-pvc at /mlruns <----------------------------+
+#   (their next /ready probe calls check_and_reload() and loads it, no restart needed)
+#
+# Re-running is safe: if the same file (sha256) is already in Production it exits.
+# Jobs are immutable, so to re-run:  kubectl delete job register-b1-model -n melanoma-production
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-b1-model
+  namespace: melanoma-production
+  labels:
+    app: register-b1-model
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400   # auto-delete the finished Job after a day
+  template:
+    metadata:
+      labels:
+        app: register-b1-model
+    spec:
+      restartPolicy: Never           # a failed attempt leaves its pod around so you can read the logs
+      containers:
+        - name: register
+          image: airflow-image:v1    # already has torch, torchvision, mlflow 2.12.1 and training/src/
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/airflow   # manifests contain relative paths like data/processed/v1/...
+          # `command` replaces the Airflow image's entrypoint (which would try to
+          # check the Airflow DB first) - we just want plain Python here.
+          command:
+            - python
+            - training/src/register_pretrained.py
+            - --weights=/opt/airflow/data/seed_model/efficientnet_b1.pt   # rename your file to this, or change it here
+            - --img-size=224                                              # what your B1 was trained on
+            - --model-name=efficientnet_b1
+            - --mlruns=/opt/airflow/mlruns
+            # - --threshold=0.5      # uncomment to force a threshold instead of tuning on val
+          volumeMounts:
+            - name: data-vol
+              mountPath: /opt/airflow/data
+              readOnly: true
+            - name: mlruns-vol
+              mountPath: /opt/airflow/mlruns
+          resources:
+            requests: {cpu: "500m", memory: "1Gi"}
+            limits: {cpu: "2", memory: "3Gi"}
+      volumes:
+        - name: data-vol
+          persistentVolumeClaim:
+            claimName: data-pvc
+        - name: mlruns-vol
+          persistentVolumeClaim:
+            claimName: mlruns-pvc

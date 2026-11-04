@@ -1,0 +1,87 @@
+# ==============================================================================
+# MLflow UI  —  browse experiments, runs and the model registry
+# ==============================================================================
+# This is ONLY a viewer. Nobody sends data to it over the network: training
+# (scheduler pod), register-b1-model and the backend all read/write the
+# mlruns-pvc FILES directly. This pod just mounts the same PVC and renders it.
+#
+#   airflow-schedular --writes--> mlruns-pvc <--reads-- backend (/mlruns)
+#                                     ^
+#                                     +--reads/writes-- mlflow (/opt/airflow/mlruns)  <-- you, via port-forward :5000
+#
+# Why mount at /opt/airflow/mlruns: runs store their artifact_uri as an
+# absolute path (file:///opt/airflow/mlruns/...) because that's where training
+# ran. Mounting at the same path makes artifacts show up in the UI (same trick
+# as in docker-compose.yml).
+#
+# Version 2.12.1 = same MLflow version as the airflow and backend images, so
+# all three agree on the file-store layout.
+#
+# Open it:  kubectl port-forward svc/mlflow 5000:5000 -n melanoma-production
+#           -> http://localhost:5000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: melanoma-production
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:v2.12.1
+          imagePullPolicy: IfNotPresent
+          command: ["mlflow", "ui"]
+          args:
+            - --backend-store-uri=/opt/airflow/mlruns
+            - --host=0.0.0.0        # listen on the pod IP, not just localhost, so the Service can reach it
+            - --port=5000
+          ports:
+            - containerPort: 5000
+              name: http
+          volumeMounts:
+            - name: mlruns-vol
+              mountPath: /opt/airflow/mlruns
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: "100m", memory: "256Mi"}
+            limits: {cpu: "500m", memory: "768Mi"}
+      volumes:
+        - name: mlruns-vol
+          persistentVolumeClaim:
+            claimName: mlruns-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: melanoma-production
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000

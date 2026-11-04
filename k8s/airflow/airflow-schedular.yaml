@@ -1,3 +1,34 @@
+# ==============================================================================
+# airflow-schedular.yaml  —  Airflow scheduler (+ LocalExecutor task runner)
+# ==============================================================================
+# With LocalExecutor there are NO separate worker pods: the scheduler process
+# forks a subprocess for every task. So this pod is where the DAG code actually
+# runs — validate/split/preprocess, and the retraining DAG's `python train.py`.
+# That's why it (and only it, among the Airflow pods) mounts the 3 shared PVCs:
+#
+#   data-pvc    -> /opt/airflow/data      raw images in, processed images +
+#                                         baseline stats out
+#   logs-pvc    -> /opt/airflow/app_logs  the BACKEND's logs folder: retrain flag,
+#                                         feedback_data/ (retraining DAG reads it)
+#   mlruns-pvc  -> /opt/airflow/mlruns    MLflow store: training writes runs and
+#                                         registers models here; backend reads it
+#
+# Talks to:  postgres:5432 (metadata DB, via the secret's SQL_ALCHEMY_CONN)
+#            statsd-exporter:8125/UDP (metrics, via airflow-config)
+# Talked to by: airflow-webserver -> <this pod IP>:8793 to fetch task logs
+#               kubelet -> :8974/health (probes)
+#
+# FIXES vs. the previous version (it could not be applied):
+#   1. `selector` was nested under `strategy` -> moved to spec.selector
+#      (a Deployment without spec.selector is rejected by the API server)
+#   2. `volume:` -> `volumes:` (unknown field -> strict decoding error)
+#   3. logs-pvc was mounted at /opt/airflow/logs. That is Airflow's OWN task-log
+#      folder, and retraining_dag.py reads the backend's files from
+#      /opt/airflow/app_logs (same path as in docker-compose). Now mounted there.
+#   4. Probes pointed at 8794; Airflow's scheduler health server is on 8974.
+#   5. Memory limit 2Gi -> 4Gi: retraining EfficientNet-B1 at 224x224 runs
+#      INSIDE this pod and gets OOMKilled (exit 137) at 2Gi.
+# ==============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,10 +40,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
-    selector:
-      matchLabels:
-        app: airflow-schedular
+    type: Recreate        # RWO PVCs + only one scheduler should ever run tasks at a time
+  selector:               # FIX 1: sibling of strategy, not inside it
+    matchLabels:
+      app: airflow-schedular
 
   template:
     metadata:
@@ -20,7 +51,7 @@ spec:
         app: airflow-schedular
 
     spec:
-      volume:
+      volumes:            # FIX 2: plural
         - name: data-vol
           persistentVolumeClaim:
             claimName: data-pvc
@@ -35,32 +66,34 @@ spec:
         - name: airflow-schedular
           image: airflow-image:v1
           imagePullPolicy: IfNotPresent
-          args: ["scheduler"] # image entry point turns this into airflow scheduler
+          args: ["scheduler"]   # image entrypoint turns this into `airflow scheduler`
           envFrom:
             - configMapRef:
                 name: airflow-config
             - secretRef:
                 name: airflow-secret
           ports:
-            - containerPort: 8793
-            - containerPort: 8794
+            - containerPort: 8793   # task-log server; the webserver fetches logs from here
+              name: worker-logs
+            - containerPort: 8974   # scheduler health server (/health)
+              name: health
           volumeMounts:
             - name: data-vol
               mountPath: /opt/airflow/data
             - name: logs-vol
-              mountPath: /opt/airflow/logs
+              mountPath: /opt/airflow/app_logs   # FIX 3: matches RETRAIN_FLAG_PATH / FEEDBACK_DATA_DIR in retraining_dag.py
             - name: mlruns-vol
               mountPath: /opt/airflow/mlruns
-          startupProbe:
+          startupProbe:             # gives the scheduler up to 30 x 10s = 5 min to boot
             httpGet:
               path: /health
-              port: 8794
+              port: 8974            # FIX 4
             periodSeconds: 10
             failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health
-              port: 8794
+              port: 8974
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 5
@@ -68,7 +101,7 @@ spec:
           resources:
             requests:
               cpu: "500m"
-              memory: "512Mi"
+              memory: "1Gi"
             limits:
-              cpu: "1"
-              memory: "2Gi"
+              cpu: "2"
+              memory: "4Gi"         # FIX 5

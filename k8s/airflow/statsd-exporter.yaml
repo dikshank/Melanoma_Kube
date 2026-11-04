@@ -1,3 +1,5 @@
+# Airflow --UDP:8125--> statsd-exporter (converts StatsD -> Prometheus format)
+# Prometheus --HTTP GET :9102/metrics--> statsd-exporter
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,7 +23,10 @@ spec:
           image: prom/statsd-exporter:v0.23.0
           args:
             - "--statsd.listen-udp=:8125"
-            - "--statsd.listen-tcp=:9102"
+            # FIXED: was --statsd.listen-tcp=:9102. That made the exporter listen for
+            # StatsD-over-TCP on 9102, the same port its HTTP /metrics server uses
+            # by default -> "address already in use". 9102 is the WEB port:
+            - "--web.listen-address=:9102"
           ports:
             - containerPort: 8125
               protocol: UDP
@@ -43,7 +48,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: statsd-exporter-service
+  # FIXED: was "statsd-exporter-service". Airflow (STATSD_HOST in airflow-config)
+  # and Prometheus (scrape target) both use the name "statsd-exporter", and a
+  # Service's DNS name IS its metadata.name.
+  name: statsd-exporter
   namespace: melanoma-production
   labels:
     app: statsd-exporter
@@ -58,4 +66,3 @@ spec:
     - name: metrics
       port: 9102
       targetPort: 9102
-            

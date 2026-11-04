@@ -1,0 +1,12 @@
+# Every other manifest says `namespace: melanoma-production`, so this has to be
+# applied FIRST (same as `kubectl create namespace melanoma-production`, but
+# declarative, so `kubectl apply -f k8s/namespace.yaml` is safe to re-run).
+#
+# A namespace is also part of every DNS name inside it:
+#   backend  ->  backend.melanoma-production.svc.cluster.local
+# Pods in this namespace can use the short name "backend" because their
+# /etc/resolv.conf has "search melanoma-production.svc.cluster.local ...".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: melanoma-production

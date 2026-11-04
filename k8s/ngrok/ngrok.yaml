@@ -1,0 +1,70 @@
+# ==============================================================================
+# ngrok  —  the public URL your users open
+# ==============================================================================
+# ngrok does NOT need any inbound port on your machine. The ngrok pod opens an
+# OUTBOUND connection to ngrok's cloud; the cloud gives you a public https URL
+# and forwards each request back down that tunnel to the pod, which then calls
+# the frontend Service inside the cluster:
+#
+#   user's browser --https--> https://<random>.ngrok-free.app (ngrok cloud)
+#        ==tunnel==> ngrok pod --http://frontend:80--> [Service frontend]
+#        --> nginx pod --(/predict, /feedback, /ready, ...)--> http://backend:8000 --> backend pod
+#
+# The authtoken is NOT in this file (your old .env token was public on GitHub -
+# revoke it). Create the Secret from the command line instead:
+#
+#   kubectl create secret generic ngrok-secret -n melanoma-production ^
+#     --from-literal=NGROK_AUTHTOKEN=<your-new-token>
+#
+# Find the public URL:
+#   kubectl logs deploy/ngrok -n melanoma-production | findstr url=
+#   or: kubectl port-forward svc/ngrok 4040:4040 -n melanoma-production  -> http://localhost:4040
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ngrok
+  namespace: melanoma-production
+  labels:
+    app: ngrok
+spec:
+  replicas: 1                 # free plan = 1 agent session; 2 replicas would fight over the tunnel
+  selector:
+    matchLabels:
+      app: ngrok
+  template:
+    metadata:
+      labels:
+        app: ngrok
+    spec:
+      containers:
+        - name: ngrok
+          image: ngrok/ngrok:3
+          args:
+            - http
+            - http://frontend:80      # Service name.port inside the cluster
+            - --log=stdout            # so `kubectl logs` shows the public URL
+          env:
+            - name: NGROK_AUTHTOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ngrok-secret
+                  key: NGROK_AUTHTOKEN
+          ports:
+            - containerPort: 4040     # local inspector UI / API (lists the public URL + every request)
+              name: inspector
+          resources:
+            requests: {cpu: "20m", memory: "32Mi"}
+            limits: {cpu: "200m", memory: "128Mi"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ngrok
+  namespace: melanoma-production
+spec:
+  selector:
+    app: ngrok
+  ports:
+    - name: inspector
+      port: 4040
+      targetPort: 4040

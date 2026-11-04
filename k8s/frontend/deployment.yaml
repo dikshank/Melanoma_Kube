@@ -149,3 +149,32 @@ spec:
               path: /
               port: 80
             periodSeconds: 5
+
+---
+# ==============================================================================
+# ADDED: frontend Service
+# ==============================================================================
+# ngrok (k8s/ngrok/ngrok.yaml) runs `ngrok http frontend:80`, so this Service
+# must be named "frontend". Note the selector is app: frontend-app — it matches
+# the POD labels (template.metadata.labels), not the Deployment's own
+# metadata.labels (app: frontend), which nothing selects on.
+#
+#   Internet -> ngrok cloud -> ngrok pod --http://frontend:80--> [Service frontend]
+#            -> one of 3 nginx pods :80 -> static files, or proxy /predict etc.
+#               to http://backend:8000
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: melanoma-production
+  labels:
+    app: frontend
+spec:
+  type: ClusterIP           # ngrok makes it public; for local testing use
+                            # `kubectl port-forward svc/frontend 8081:80 -n melanoma-production`
+  selector:
+    app: frontend-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

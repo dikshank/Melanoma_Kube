@@ -11,11 +11,19 @@ data:
   AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
   AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
   AIRFLOW__WEBSERVER__WORKERS: "2"
-  AIRFLOW__SCHEDULAR__ENABLE_HEALTH_CHECK: "true"  # gives schedular an endpoint /health on 8974 to check if it's healthy or not. This is important because it allows other services to know if the schedular is healthy or not.
+  # FIXED: was AIRFLOW__SCHEDULAR__... (typo). Airflow silently ignores unknown
+  # env vars, so the health server never started and the scheduler's
+  # startup/liveness probes could never pass -> CrashLoop.
+  AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+  AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_SERVER_PORT: "8974"   # serves GET /health on 8974; the startup/liveness probes in airflow-schedular.yaml call it
   AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: "30"
   AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC: "30"
-  AIRFLOW__METRICES__STATSD_ON: "true"
-  AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"   # servive name of statsd-exporter'
+  # FIXED: was AIRFLOW__METRICES__ (typo) -> StatsD was never switched on, so
+  # statsd-exporter / Prometheus / the Airflow Grafana dashboard got no data.
+  AIRFLOW__METRICS__STATSD_ON: "true"
+  # Service name -> CoreDNS -> ClusterIP. The Service in statsd-exporter.yaml is
+  # now named exactly "statsd-exporter" (it was "statsd-exporter-service").
+  AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"
   AIRFLOW__METRICS__STATSD_PORT: "8125"
   AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
   PYTHONPATH: "/opt/airflow/data_pipeline"

@@ -1,0 +1,53 @@
+# ==============================================================================
+# pvc-loader  —  a throwaway pod for getting files INTO the PVCs
+# ==============================================================================
+# The PVCs start empty. In docker-compose you bind-mounted ./data, ./mlruns,
+# ./logs from your laptop; Kubernetes has no direct equivalent, so we mount all
+# three PVCs into one tiny pod and `kubectl cp` files into it:
+#
+#   your laptop --kubectl cp--> pvc-loader:/data   == data-pvc   (raw/, processed/,
+#                                                                  baseline_stats/, seed_model/)
+#                               pvc-loader:/logs   == logs-pvc
+#                               pvc-loader:/mlruns == mlruns-pvc
+#
+# Anything written here is seen by every other pod that mounts the same PVC
+# (airflow-schedular, backend, mlflow, register-b1-model Job).
+#
+# The chmod matters: the Airflow image runs as uid 50000, the backend as root.
+# 777 lets both write to the same folders.
+#
+# Delete it when you're done:  kubectl delete pod pvc-loader -n melanoma-production
+# (It's a bare Pod on purpose - no Deployment, so nothing recreates it.)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-loader
+  namespace: melanoma-production
+  labels:
+    app: pvc-loader
+spec:
+  restartPolicy: Never
+  containers:
+    - name: loader
+      image: busybox:1.36
+      command: ["sh", "-c", "chmod 777 /data /logs /mlruns && echo ready && sleep 7200"]
+      volumeMounts:
+        - name: data-vol
+          mountPath: /data
+        - name: logs-vol
+          mountPath: /logs
+        - name: mlruns-vol
+          mountPath: /mlruns
+      resources:
+        requests: {cpu: "10m", memory: "16Mi"}
+        limits: {cpu: "200m", memory: "64Mi"}
+  volumes:
+    - name: data-vol
+      persistentVolumeClaim:
+        claimName: data-pvc
+    - name: logs-vol
+      persistentVolumeClaim:
+        claimName: logs-pvc
+    - name: mlruns-vol
+      persistentVolumeClaim:
+        claimName: mlruns-pvc

@@ -36,7 +36,12 @@ _model_meta = {
     "version": None,
     "name": None,
     "run_id": None,
-    "threshold": 0.35
+    "threshold": 0.35,
+    # Input size the model was trained on. Read from the run's params/img_size
+    # (logged by train.py and by register_pretrained.py). predictor.py resizes
+    # every upload to img_size x img_size, so this MUST match training.
+    # 64 is the fallback for the old simple_cnn runs.
+    "img_size": 64,
 }
 
 
@@ -174,7 +179,7 @@ def _get_threshold_from_run(run_id: str) -> tuple:
     Avoids MLflow client version mismatch issues.
 
     Returns:
-        tuple: (threshold, model_name)
+        tuple: (threshold, model_name, img_size)
     """
     import yaml
     mlruns_path = _get_mlruns_path()
@@ -188,8 +193,11 @@ def _get_threshold_from_run(run_id: str) -> tuple:
             threshold_file = Path(run_dir) / "params" / "best_threshold"
             model_name_file = Path(run_dir) / "tags" / "model_name"
             
+            img_size_file = Path(run_dir) / "params" / "img_size"
+
             threshold = 0.35
             model_name = "unknown"
+            img_size = 64
             
             if threshold_file.exists():
                 threshold = float(threshold_file.read_text().strip())
@@ -198,12 +206,16 @@ def _get_threshold_from_run(run_id: str) -> tuple:
             if model_name_file.exists():
                 model_name = model_name_file.read_text().strip()
                 logger.info("Model name from file: %s", model_name)
-            
-            return threshold, model_name
+
+            if img_size_file.exists():
+                img_size = int(img_size_file.read_text().strip())
+                logger.info("Image size from file: %d", img_size)
+
+            return threshold, model_name, img_size
         except Exception as e:
             logger.warning("Could not read run files: %s", e)
     
-    return 0.35, "unknown"
+    return 0.35, "unknown", 64
 
 
 def load_model() -> bool:
@@ -246,7 +258,7 @@ def load_model() -> bool:
         model.eval()
 
         #── Fetch threshold and model name ────────────────────────────────
-        threshold, model_name_tag = _get_threshold_from_run(run_id)
+        threshold, model_name_tag, img_size = _get_threshold_from_run(run_id)
 
         # ── Cache in memory ───────────────────────────────────────────────
         _model = model
@@ -254,19 +266,21 @@ def load_model() -> bool:
         _model_meta["run_id"] = run_id
         _model_meta["threshold"] = threshold
         _model_meta["name"] = model_name_tag
+        _model_meta["img_size"] = img_size
         
         # ── Update Prometheus metrics ─────────────────────────────────────
         MODEL_INFO.info({
             "version": str(version),
             "run_id": run_id,
             "threshold": str(threshold),
+            "img_size": str(img_size),
             "stage": MODEL_STAGE
         })
         MODEL_LOAD_STATUS.set(1)
 
         logger.info(
-            "✅ Model loaded | version=%s | threshold=%.4f | run_id=%s",
-            version, threshold, run_id
+            "✅ Model loaded | version=%s | threshold=%.4f | img_size=%d | run_id=%s",
+            version, threshold, img_size, run_id
         )
         return True
 

@@ -1,0 +1,44 @@
+# ============================================================
+# config_v1_efficientnet_b1.yaml
+# Used by the retraining DAG when the current Production model is
+# efficientnet_b1 (your pretrained B1, registered by
+# training/src/register_pretrained.py). The DAG maps
+# tags/model_name -> config file in get_production_config().
+#
+# NOTE ON IMAGE SIZE: your B1 was trained at 224x224, but the data
+# pipeline (configs/pipeline_config_v1.yaml) stores images at 64x64.
+# Training here upsamples 64 -> 224, which works but throws away detail
+# the original B1 saw. If you keep the original high-res images, raise
+# preprocessing.target_size in the pipeline config to [224, 224].
+# ============================================================
+mlflow:
+  tracking_uri: "./mlruns"            # cwd is /opt/airflow -> /opt/airflow/mlruns (mlruns-pvc)
+  experiment_name: "baseline-v1"
+  run_name: "efficientnet-b1-retrain"
+  experiment_type: "retrain"
+model:
+  name: "efficientnet_b1"             # must be in model.SUPPORTED_MODELS
+  img_size: 224                       # logged as params/img_size -> backend resizes to this
+  freeze_base: true
+  unfreeze_epoch: 3
+  num_layers_to_unfreeze: 2
+data:
+  version: "v1"
+  manifest_dir: "data/processed/v1/manifests"
+  baseline_stats_path: "data/baseline_stats/v1_stats.json"
+training:
+  epochs: 5
+  batch_size: 8                       # 224px B1 on CPU: keep batches small (memory limit 3Gi)
+  lr_head: 0.001
+  lr_finetune: 0.0001
+  weight_decay: 0.0001
+  class_weights: [1.0, 2.0]
+  early_stopping_patience: 3
+output:
+  checkpoint_dir: "training/models/v1"
+  artifacts_dir: "training/artifacts/v1_efficientnet_b1"
+debug:
+  enabled: false
+  num_images: 20
+  epochs: 2
+  batch_size: 4
