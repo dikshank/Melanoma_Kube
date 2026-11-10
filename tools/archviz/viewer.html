@@ -220,6 +220,8 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
 .legend2 span{display:inline-flex;align-items:center;gap:6px} .legend2 i{display:inline-block;width:22px;height:0}
 .muted{color:var(--muted)}
 .ih{font:600 10.5px var(--sans);fill:var(--accent)}
+.tdir{font:700 12.5px var(--mono);fill:var(--ink)} .tfile{font:400 12px var(--mono);fill:var(--ink)} .tmore{font:italic 400 11.5px var(--mono);fill:var(--muted)}
+.tann{font:500 11px var(--sans);fill:var(--accent)} .tsrc{font:600 11px var(--mono);fill:var(--muted)}
 .sh{font:600 11px var(--mono);fill:var(--ink)} .shared{cursor:pointer} .shared:hover .sh{fill:var(--accent)}
 .rbtn rect{fill:var(--soft);stroke:var(--line)} .rbtn:hover rect{stroke:var(--accent)} .rbt{font:700 10.5px var(--sans);fill:var(--ink)} .rbtn{cursor:pointer}
 .gtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
@@ -510,7 +512,7 @@ function door(p,x,y,kind,label,vertical){const g=el("g",{class:"door2"},p);el("r
 function iconCard(p,x,y,w,h,title,sub,kind,id,lids){
   const g=el("g",{class:"icard go","data-id":id||""},p);
   el("rect",{x,y,width:w,height:h,rx:10,style:`stroke:${KCOL[kind]||"var(--muted)"}`},g);
-  tx(g,x+12,y+22,trunc(title,20),"it");if(sub)tx(g,x+12,y+39,trunc(sub,30),"is");
+  tx(g,x+12,y+22,trunc(title,Math.floor((w-80)/8)),"it");if(sub)tx(g,x+12,y+39,trunc(sub,Math.floor((w-20)/6.7)),"is");
   if(lids&&lids.length){tx(g,x+12,y+h-10,lids.length>1?`click: ${lids.length} connections · sent ↔ received`:"click: what's sent ↔ what comes back","ih");
     g.addEventListener("click",e=>{e.stopPropagation();openGates(lids);});}
   if(id&&ENT[id]&&id!==roomId){const rb=el("g",{class:"rbtn"},g);el("rect",{x:x+w-62,y:y+6,width:54,height:20,rx:10},rb);tx(rb,x+w-35,y+20,"room ↗","rbt","middle");
@@ -665,16 +667,24 @@ function drawComponentRoom(svg,id,o,inc,out){
 function groupBy(list,side){const m=new Map();list.forEach(l=>{const k=(side==="in"?l.src:l.dst)+"|"+l.kind;if(!m.has(k))m.set(k,[]);m.get(k).push(l);});return [...m.values()];}
 function drawHubRoom(svg,id,e,o,inc,out){
   const gin=groupBy(inc,"in"),gout=groupBy(out,"out");
-  const ROW=84,W=1440,rows=Math.max(gin.length,gout.length,1),H=Math.max(760,rows*ROW+120);
+  const ROW=84,W=1440,rows=Math.max(gin.length,gout.length,1);
+  const tree=e.type==="pvc"?(o.tree||[]):[];
+  const treeH=e.type==="pvc"?Math.max(380,150+tree.length*19):380;
+  const H=Math.max(760,rows*ROW+120,treeH+230);
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  const C={x:500,y:Math.max(170,H/2-190),w:440,h:380};
+  const C=e.type==="pvc"?{x:400,y:Math.max(150,H/2-treeH/2-20),w:660,h:treeH}:{x:500,y:Math.max(170,H/2-190),w:440,h:380};
   const g=el("g",{},svg);
   if(e.type==="pvc"){
     el("rect",{x:C.x-60,y:C.y-90,width:C.w+120,height:C.h+170,rx:24,class:"wall-ns"},g);tx(g,C.x-40,C.y-62,`namespace: ${DATA.meta.namespace} · StorageClass ${o.storageClass}`,"wl");
     const r=22;el("path",{class:"bigcyl",d:`M${C.x},${C.y+r}A${C.w/2},${r} 0 0 1 ${C.x+C.w},${C.y+r}L${C.x+C.w},${C.y+C.h-r}A${C.w/2},${r} 0 0 1 ${C.x},${C.y+C.h-r}Z`},g);
     el("path",{class:"bigcylt",d:`M${C.x},${C.y+r}A${C.w/2},${r} 0 0 0 ${C.x+C.w},${C.y+r}`},g);
     tx(g,C.x+C.w/2,C.y+64,o.name,"wt","middle");tx(g,C.x+C.w/2,C.y+86,`${o.size} · ${(o.access||[]).join(", ")} · ${o.phase}`,"ps","middle");
-    mtext(g,C.x+30,C.y+124,(o.contents||"").split(" · ").slice(0,8).map(s=>"📁 "+trunc(s,48)),"cp","start",22);
+    tx(g,C.x+C.w/2,C.y+106,o.treeSource||"","tsrc","middle");
+    tree.forEach((t,i)=>{const yy=C.y+138+i*19,xx=C.x+28+t.d*20;
+      const icon=t.t==="dir"?"📁":t.t==="file"?"📄":"";
+      const lab=tx(g,xx,yy,`${icon} ${t.n}${t.t==="dir"&&t.c?`  (${t.c})`:""}`,t.t==="more"?"tmore":t.t==="dir"?"tdir":"tfile");
+      if(t.a)tx(g,C.x+C.w-20,yy,trunc(t.a,58),"tann","end");});
+    if(!tree.length)tx(g,C.x+C.w/2,C.y+150,"(empty)","ps","middle");
     tx(g,C.x+C.w/2,C.y+C.h+40,"a hostPath folder on the node, bind-mounted into each pod on the left","wl","middle");
     tx(g,C.x+C.w/2,C.y+C.h+60,"RWO = one NODE at a time (not one pod)","wl","middle");
   } else if(e.type==="config"){
@@ -692,12 +702,13 @@ function drawHubRoom(svg,id,e,o,inc,out){
     const l=grp[0],other=side==="in"?l.src:l.dst,y=60+i*ROW,dy=y+33;
     let sub=grp.length>1?grp.map(x=>x.label.split(":")[0]).join(" · "):l.label;
     if(e.type==="pvc"){const oc=ENT[other]?.obj;const np=oc?(oc.pods.length||oc.replicas||1):1;sub=`×${np} pod${np>1?"s":""} · ${l.mode==="ro"?"read-only":"read-write"} at ${l.path}`;}
-    const cx_=side==="in"?20:W-270;iconCard(svg,cx_,y,250,68,nameOf(other),sub,l.kind,other,grp.map(x=>x.id));
+    const CW=e.type==="pvc"?330:250;const cx_=side==="in"?20:W-CW-20;iconCard(svg,cx_,y,CW,68,nameOf(other),sub,l.kind,other,grp.map(x=>x.id));
     const ty=C.y+30+((i*(C.h-60))/Math.max(1,groups.length-1||1));
     const oc=ENT[other]?.obj, np=(e.type==="pvc"&&oc&&oc.pods)?Math.min(4,oc.pods.length||oc.replicas||1):1;
     const tipH=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b>${grp.length>1?` (${grp.length} connections)`:""}${np>1?` · one mount per pod (×${np})`:""}<br>→ ${esc(trunc(l.payload,110))}<br><span class="muted">← ${esc(trunc(l.response,110))}</span>`;
     for(let k=0;k<np;k++){const off=(k-(np-1)/2)*12,yy=dy+off,tt=ty+off;
-      const d=side==="in"?`M270,${yy} C${C.x-140},${yy} ${C.x-80},${tt} ${C.x-8},${tt}`:`M${C.x+C.w+8},${tt} C${C.x+C.w+80},${tt} ${W-410},${yy} ${W-272},${yy}`;
+      const CW=e.type==="pvc"?330:250;
+      const d=side==="in"?`M${CW+20},${yy} C${C.x-110},${yy} ${C.x-60},${tt} ${C.x-8},${tt}`:`M${C.x+C.w+8},${tt} C${C.x+C.w+80},${tt} ${W-CW-160},${yy} ${W-CW-22},${yy}`;
       pipe(svg,d,l.kind,l.id,tipH,{dur:2.2+k*.3,reverse:l.kind==="file"&&l.mode==="ro"&&side==="in",ret:4});}});};
   lay(gin,"in");lay(gout,"out");
   if(!gin.length)tx(svg,30,90,"Nothing calls in.","wl");if(!gout.length)tx(svg,W-260,90,"Never calls out.","wl");

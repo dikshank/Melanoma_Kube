@@ -55,7 +55,7 @@ TEMPLATE = HERE / "viewer.html"
 # 1. Collect
 # ════════════════════════════════════════════════════════════════════════════
 
-def kubectl(*args: str):
+def kubectl(*args: str, quiet: bool = False):
     """Run kubectl and return parsed JSON, or None if it fails."""
     exe = shutil.which("kubectl")
     if not exe:
@@ -65,6 +65,8 @@ def kubectl(*args: str):
     except Exception:
         return None
     if out.returncode != 0:
+        if quiet:
+            return None
         print(f"  ! kubectl {' '.join(args)}: {out.stderr.strip()[:200]}")
         return None
     try:
@@ -377,6 +379,8 @@ def build(cluster: dict | None, manifests: list[dict], repo: Path, ns: str) -> d
         "dags": parse_dags(repo),
     }
     model["externals"] = EXTERNALS
+    for pv in pvcs:
+        pv["tree"], pv["treeSource"] = pvc_tree(pv, {c["id"]: c for c in comps}, ns, live)
     model["links"] = discover_links(model, manifests, objs, live)
     for l in model["links"]:
         l["response"], l["oneWay"] = response_for(l)
@@ -384,6 +388,136 @@ def build(cluster: dict | None, manifests: list[dict], repo: Path, ns: str) -> d
     model["questions"] = QUESTIONS
     _layout(model)
     return model
+
+
+# ── what's inside each volume ──────────────────────────────────────────────
+# Live: `kubectl exec` into a running pod that mounts the PVC and list the files.
+# Otherwise: the layout the code is expected to produce.
+PVC_ANNOT = {
+    "logs-pvc": {"pending_feedback": "← backend saves every /predict upload here",
+                 "feedback_data": "← backend moves the image here on /feedback · retraining DAG reads it",
+                 "feedback.jsonl": "← backend appends one line per feedback",
+                 "retrain_needed.flag": "← backend writes it · retraining DAG reads + deletes it",
+                 "backend.log": "← backend's log file",
+                 "feedback_data_archive": "← retraining DAG archives used feedback here"},
+    "data-pvc": {"raw": "← you loaded it (kubectl cp) · data pipeline reads it",
+                 "processed": "← data pipeline writes · train.py reads · retraining adds feedback images",
+                 "manifests": "← split task: train/val/test CSVs (filepath,label)",
+                 "baseline_stats": "← baseline task writes · backend reads it for drift",
+                 "seed_model": "← your .pt goes here · register job reads it (and saves the fallback here)"},
+    "mlruns-pvc": {"models": "← model registry: versions + stage (Production/Archived) · backend reads",
+                   "artifacts": "← the model itself + reports",
+                   "pytorch_model": "← what the backend loads (mlflow.pytorch.load_model)",
+                   "params": "← img_size, best_threshold, lr …",
+                   "metrics": "← val_recall, val_f1 … per epoch",
+                   "tags": "← model_name, is_fallback, weights_sha256 …",
+                   ".trash": "← deleted runs"},
+    "postgres-data": {"pgdata": "← Postgres's data directory (only the postgres pod writes it)"},
+    "prometheus-data": {"wal": "← write-ahead log of incoming samples"},
+}
+PVC_EXPECTED = {
+    "logs-pvc": ["backend.log", "feedback.jsonl", "retrain_needed.flag", "pending_feedback/img_<md5>_<timestamp>.jpg",
+                 "feedback_data/benign/img_<md5>_<timestamp>.jpg", "feedback_data/malignant/img_<md5>_<timestamp>.jpg",
+                 "feedback_data_archive/<YYYYmmdd_HHMMSS>/benign/"],
+    "data-pvc": ["raw/dataset1/train/benign/<n>_0.jpg", "raw/dataset1/train/malignant/<n>_1.jpg",
+                 "raw/dataset1/test/benign/<n>_0.jpg", "raw/dataset1/test/malignant/<n>_1.jpg",
+                 "processed/v1/train/benign/", "processed/v1/train/malignant/", "processed/v1/val/", "processed/v1/test/",
+                 "processed/v1/manifests/train_manifest.csv", "processed/v1/manifests/val_manifest.csv",
+                 "processed/v1/manifests/test_manifest.csv", "baseline_stats/v1_stats.json",
+                 "seed_model/efficientnet_b1.pt", "seed_model/efficientnet_b1_fallback.pt"],
+    "mlruns-pvc": ["<experiment_id>/meta.yaml", "<experiment_id>/<run_id>/meta.yaml",
+                   "<experiment_id>/<run_id>/params/img_size", "<experiment_id>/<run_id>/params/best_threshold",
+                   "<experiment_id>/<run_id>/metrics/val_recall", "<experiment_id>/<run_id>/tags/model_name",
+                   "<experiment_id>/<run_id>/tags/is_fallback",
+                   "<experiment_id>/<run_id>/artifacts/pytorch_model/MLmodel",
+                   "<experiment_id>/<run_id>/artifacts/pytorch_model/data/model.pth",
+                   "models/melanoma_classifier/meta.yaml", "models/melanoma_classifier/version-1/meta.yaml", ".trash/"],
+    "postgres-data": ["pgdata/base/", "pgdata/global/pg_filenode.map", "pgdata/pg_wal/", "pgdata/postgresql.conf", "pgdata/PG_VERSION"],
+    "prometheus-data": ["wal/", "chunks_head/", "<block_ulid>/index", "<block_ulid>/chunks/"],
+    "grafana-data": ["grafana.db", "plugins/", "csv/"],
+}
+
+
+def pvc_tree(pv: dict, comps: dict, ns: str, live: bool):
+    """Return ([lines], source) describing the files in a PVC."""
+    paths, source = None, ""
+    if live:
+        for u in pv["users"]:
+            c = comps.get(u["component"])
+            pod = next((p for p in (c or {}).get("pods", []) if p.get("phase") == "Running"), None)
+            if not pod:
+                continue
+            # folders get a trailing "/", files don't (works with GNU find and busybox)
+            out = kubectl("exec", "-n", ns, pod["name"], "-c", c["containers"][0]["name"], "--", "sh", "-c",
+                          f"cd {u['path']} 2>/dev/null && (find . -mindepth 1 -maxdepth 6 -type d 2>/dev/null | sed 's|$|/|'; "
+                          f"find . -mindepth 1 -maxdepth 6 ! -type d 2>/dev/null) | head -6000", quiet=True)
+            if isinstance(out, str) and out.strip():
+                paths = [l[2:] for l in out.splitlines() if l.startswith("./")]
+                source = f"live: kubectl exec into {pod['name']} → ls {u['path']}"
+                break
+    if not paths:
+        paths = PVC_EXPECTED.get(pv["name"], [])
+        source = "expected layout (from the code), not a live listing"
+    return _summarise(paths, PVC_ANNOT.get(pv["name"], {})), source
+
+
+def _summarise(paths: list[str], annot: dict, max_lines: int = 70) -> list[dict]:
+    """Folder tree with big folders collapsed: 'a.jpg, b.jpg … +160 more .jpg'."""
+    tree: dict = {}
+    for p in paths:
+        node = tree
+        parts = [x for x in p.split("/") if x]
+        is_dir = p.endswith("/")
+        for i, part in enumerate(parts):
+            if i == len(parts) - 1 and not is_dir:
+                node.setdefault(part, None)          # a file (unless already known as a folder)
+            else:
+                if not isinstance(node.get(part), dict):
+                    node[part] = {}
+                node = node[part]
+    lines: list[dict] = []
+
+    def walk(node: dict, depth: int):
+        dirs = sorted(k for k, v in node.items() if isinstance(v, dict))
+        files = sorted(k for k, v in node.items() if v is None)
+        show_d = dirs if len(dirs) <= 6 else dirs[:3]
+        for d in show_d:
+            if len(lines) >= max_lines:
+                return
+            n_files = _count(node[d])
+            lines.append({"d": depth, "t": "dir", "n": d + "/", "c": n_files, "a": annot.get(d, "")})
+            walk(node[d], depth + 1)
+        if len(dirs) > len(show_d):
+            lines.append({"d": depth, "t": "more", "n": f"… +{len(dirs) - len(show_d)} more folders like these", "c": 0, "a": ""})
+        if len(files) <= 5:
+            for f in files:
+                if len(lines) < max_lines:
+                    lines.append({"d": depth, "t": "file", "n": f, "c": 0, "a": annot.get(f, "")})
+        else:
+            for f in files[:2]:
+                lines.append({"d": depth, "t": "file", "n": f, "c": 0, "a": annot.get(f, "")})
+            rest = files[2:]
+            exts: dict = {}
+            for f in rest:
+                stem, _, e = f.rpartition(".")
+                key = f".{e}" if stem and e.isalnum() and len(e) <= 4 else "files"
+                exts[key] = exts.get(key, 0) + 1
+            if len(exts) == 1 and "files" not in exts:
+                label = f"… +{len(rest)} more {next(iter(exts))}"
+            else:
+                label = f"… +{len(rest)} more files"
+            lines.append({"d": depth, "t": "more", "n": label, "c": 0, "a": ""})
+
+    walk(tree, 0)
+    if len(lines) >= max_lines:
+        lines.append({"d": 0, "t": "more", "n": "… (truncated)", "c": 0, "a": ""})
+    return lines
+
+
+def _count(node) -> int:
+    if node is None:
+        return 1
+    return sum(_count(v) for v in node.values())
 
 
 PVC_CONTENTS = {
