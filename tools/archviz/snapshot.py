@@ -378,6 +378,8 @@ def build(cluster: dict | None, manifests: list[dict], repo: Path, ns: str) -> d
     }
     model["externals"] = EXTERNALS
     model["links"] = discover_links(model, manifests, objs, live)
+    for l in model["links"]:
+        l["response"], l["oneWay"] = response_for(l)
     model["flows"] = build_flows(model)
     model["questions"] = QUESTIONS
     _layout(model)
@@ -791,6 +793,44 @@ PROBE_TEXT = {
     "readiness": "Readiness probe: {how} every {period}s (timeout {timeout}s). Failing = pod removed from its Service's endpoints (gets no traffic) but NOT restarted.",
     "liveness": "Liveness probe: {how} every {period}s (timeout {timeout}s, {failureThreshold} failures). Failing = kubelet restarts the container.",
 }
+
+
+def response_for(l: dict):
+    """What comes BACK through a gate (and whether anything does at all)."""
+    src, dst, kind, proto = l["src"], l["dst"], l["kind"], l.get("proto", "")
+    if "UDP" in proto:
+        return ("Nothing comes back. UDP is fire-and-forget: Airflow sends the packet and moves on. "
+                "If statsd-exporter is down, Airflow never notices (and is never slowed down)."), True
+    if kind == "config":
+        return "Nothing: it is injected once, when the container starts.", True
+    if kind == "file":
+        if l.get("mode") == "ro":
+            return "The file contents flow INTO the pod (reads only; any write fails with EROFS).", False
+        return "Reads return file contents; writes return success or an error (e.g. disk full). Same folder for every pod that mounts it.", False
+    if kind == "probe":
+        return ("HTTP 200-399 (or exit code 0) = success. Anything else, or no answer within the timeout, counts as a failure; "
+                "enough failures in a row → readiness: pod removed from the Service / liveness: container restarted."), False
+    if src == "ext:internet":
+        return "HTTPS responses: the UI files (HTML/JS/CSS) and the backend's JSON, encrypted from the edge to the browser.", False
+    if src == "ext:edge":
+        return "The response goes back up the SAME outbound connection the agent opened, then out to the browser.", False
+    if "ngrok" in src or "cloudflared" in src:
+        return "nginx's answer: static files for page loads, or the backend's JSON for API calls (passed through unchanged).", False
+    if "frontend" in src and "backend" in dst:
+        return ("/predict → 200 {\"image_id\":\"img_9a4b..._1793...jpg\",\"label\":\"malignant\",\"confidence\":0.62,\"malignant_prob\":0.62,\"threshold_used\":0.1,\"is_fallback\":true,\"recommendation\":\"...\"} "
+                "| 400 bad image | 503 model not loaded\n/feedback → 200 {\"received\":true,\"message\":\"Feedback recorded. Thank you.\"}\n"
+                "/ready → 200 {model_loaded, model_name, model_version, is_fallback} or 503 · /health → {\"status\":\"ok\"} · /metrics → Prometheus text"), False
+    if kind == "db":
+        return "Result rows for SELECTs (dag runs, task states, users); OK / row counts for INSERT/UPDATE; errors such as 'too many clients' or a deadlock.", False
+    if kind == "metric":
+        return "200 OK with the metrics as plain text, e.g. melanoma_prediction_total{label=\"benign\"} 12. A failed or timed-out scrape marks the target DOWN.", False
+    if "grafana" in src:
+        return "JSON time series ({\"status\":\"success\",\"data\":{\"result\":[...]}}) that Grafana turns into panels.", False
+    if "8793" in str(l.get("port")):
+        return "The task's log text, which the UI shows under the task.", False
+    if kind == "control":
+        return "Whatever the UI answers (HTML, JSON), relayed back through the kubelet and API server to localhost.", False
+    return "The callee's reply.", False
 
 
 # ════════════════════════════════════════════════════════════════════════════

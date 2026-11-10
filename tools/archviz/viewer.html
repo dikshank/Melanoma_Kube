@@ -189,6 +189,13 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
 .pipe.fan .pln{stroke-width:1.8;opacity:.55}
 .pipe:hover .pln{stroke-width:5.5;opacity:1}
 .pk{opacity:.95}
+.rln{fill:none;stroke-width:1.6;stroke-dasharray:2 4;opacity:.75}
+.pipe:hover .rln{stroke-width:3;opacity:1}
+.rpk{fill:var(--panel);stroke-width:2.2}
+.noreply{font:700 11px var(--mono);fill:var(--bad)}
+.gbg2{fill:none;stroke:var(--soft);stroke-width:12;stroke-linecap:round} .gln2{fill:none;stroke-width:2.2;stroke-dasharray:3 5}
+.gpk2{fill:var(--panel);stroke-width:3}
+.noreply2{font:800 15px var(--sans);fill:var(--bad)}
 .door2 .dgap{fill:var(--panel);opacity:.85} .dlab{font:700 11.5px var(--mono);fill:var(--ink)}
 .icard rect{fill:var(--panel);stroke-width:2.2}
 .icard.go{cursor:pointer} .icard.go:hover rect{fill:var(--soft)}
@@ -442,9 +449,24 @@ function pipe(p,d,kind,lid,label,opts){
   el("path",{d,class:"pbg"},g);
   const ln=el("path",{id,d,class:"pln",style:`stroke:${KCOL[kind]};stroke-dasharray:${DASH[kind]}`,"marker-end":opts.noArrow?"":`url(#ra-${kind})`},g);
   packet(g,ln,kind,opts.dur,opts.reverse);
+  // the answer: a thinner lane beside the request, with hollow packets flowing back to the caller
+  const L_=lid?LINK[lid]:null;
+  if(L_&&!L_.oneWay&&!opts.noReturn&&!(kind==="file"&&L_.mode==="ro")){
+    const d2=shiftPath(d,opts.ret||8),rid="pp"+(++pid);
+    const rl=el("path",{id:rid,d:d2,class:"rln",style:`stroke:${KCOL[kind]}`,"marker-start":`url(#rr-${kind})`},g);
+    if(RMOTION){const c=el("circle",{r:4,class:"rpk",style:`stroke:${KCOL[kind]}`},g);const am=el("animateMotion",{dur:((opts.dur||2.4)*1.1)+"s",begin:((opts.dur||2.4)/2)+"s",repeatCount:"indefinite",keyPoints:"1;0",keyTimes:"0;1",calcMode:"linear"},c);const mp=el("mpath",{},am);mp.setAttribute("href","#"+rid);}
+  }
+  if(L_&&L_.oneWay&&L_.kind!=="config"){const m=d.match(/M(-?[\d.]+),(-?[\d.]+)/);if(m){const t=tx(g,+m[1]+10,+m[2]-8,"✕ no reply (UDP)","noreply");}}
   if(lid){g.style.cursor="pointer";g.addEventListener("click",e=>{e.stopPropagation();openGate(lid);});
     g.addEventListener("mousemove",e=>showTip(e,label||""));g.addEventListener("mouseleave",hideTip);}
   return g;
+}
+function shiftPath(d,off){
+  // offset every point of the path sideways so the return lane runs next to the request lane
+  const nums=[...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map(m=>[+m[1],+m[2]]);
+  if(nums.length<2)return d;const [a,b]=[nums[0],nums[nums.length-1]];
+  const horiz=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1]);
+  return d.replace(/(-?[\d.]+),(-?[\d.]+)/g,(_,x,y)=>horiz?`${x},${+y+off}`:`${+x+off},${y}`);
 }
 function showTip(e,html){tip.innerHTML=html;tip.style.display="block";tip.style.left=Math.min(e.clientX+14,innerWidth-340)+"px";tip.style.top=(e.clientY+14)+"px";}
 function hideTip(){tip.style.display="none";}
@@ -456,14 +478,14 @@ function cylinder(p,x,y,w,h,title,sub,ro,id){const g=el("g",{class:"cyl"+(id?" g
   tx(g,x+w/2,y+34,trunc(title,20),"it","middle");if(sub)tx(g,x+w/2,y+51,sub,"is","middle");if(ro!=null)tx(g,x+w-14,y+30,ro?"🔒":"✎","bi","middle");
   if(id){g.addEventListener("click",e=>{e.stopPropagation();openRoom(id);});const t=el("title",{},g);t.textContent="Enter "+nameOf(id)+"'s room";}return g;}
 
-function roomDefs(svg){const d=el("defs",{},svg);Object.keys(KINDS).forEach(k=>{const mk=el("marker",{id:"ra-"+k,viewBox:"0 0 10 10",refX:"8",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},d);el("path",{d:"M0,0L10,5L0,10z",style:`fill:${KCOL[k]}`},mk);});}
+function roomDefs(svg){const d=el("defs",{},svg);Object.keys(KINDS).forEach(k=>{const mr=el("marker",{id:"rr-"+k,viewBox:"0 0 10 10",refX:"8",refY:"5",markerWidth:"6",markerHeight:"6",orient:"auto-start-reverse"},d);el("path",{d:"M0,0L10,5L0,10z",style:`fill:none;stroke:${KCOL[k]};stroke-width:1.6`},mr);const mk=el("marker",{id:"ra-"+k,viewBox:"0 0 10 10",refX:"8",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},d);el("path",{d:"M0,0L10,5L0,10z",style:`fill:${KCOL[k]}`},mk);});}
 
 function openRoom(id){
   const e=ENT[id];if(!e)return;roomId=id;const o=e.obj;const {inc,out}=gatesOf(id);
   $("#rCrumb").textContent=`Map › ${e.group} › ${e.type==="component"?o.kind:e.type}`;
   $("#rTitle").textContent=e.name;
   $("#rActions").innerHTML=`<button class="ghost" onclick="closeRoom();focusNode('${esc(id)}');panTo('${esc(id)}');side('${esc(id)}')">Show on map</button>`;
-  const body=$("#rBody");body.innerHTML=`<div class="plan"><svg id="plan" role="img" aria-label="Floor plan of ${esc(e.name)}"></svg></div><div class="legend2">${Object.entries(KINDS).map(([k,v])=>`<span><i style="border-top:3px ${DASH[k]?"dashed":"solid"} ${KCOL[k]}"></i>${v}</span>`).join("")}<span class="muted">· hover a pipe for one line · click a pipe to follow it · click any box outside the walls to walk into that room</span></div><details class="det"><summary>Details (text)</summary><div id="rText"></div></details>`;
+  const body=$("#rBody");body.innerHTML=`<div class="plan"><svg id="plan" role="img" aria-label="Floor plan of ${esc(e.name)}"></svg></div><div class="legend2">${Object.entries(KINDS).map(([k,v])=>`<span><i style="border-top:3px ${DASH[k]?"dashed":"solid"} ${KCOL[k]}"></i>${v}</span>`).join("")}<span><i style="border-top:3px solid var(--muted)"></i>● request</span><span><i style="border-top:1.5px dotted var(--muted)"></i>○ answer coming back</span><span class="muted">· hover a pipe for one line · click a pipe to follow it · click any box outside the walls to walk into that room</span></div><details class="det"><summary>Details (text)</summary><div id="rText"></div></details>`;
   const svg=$("#plan");roomDefs(svg);
   if(e.type==="component")drawComponentRoom(svg,id,o,inc,out);
   else drawHubRoom(svg,id,e,o,inc,out);
@@ -525,7 +547,7 @@ function drawComponentRoom(svg,id,o,inc,out){
   netIn.forEach((l,i)=>{
     const y=NS_.y+70+i*step+step/2-30;
     iconCard(svg,20,y,230,58,nameOf(l.src),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.src);
-    const tipHtml=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}${l.via&&SVC[l.via]?" · via Service "+esc(SVC[l.via].name):""}<br><span class="muted">${esc(trunc(l.payload,140))}</span>`;
+    const tipHtml=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}${l.via&&SVC[l.via]?" · via Service "+esc(SVC[l.via].name):""}<br><span class="muted">→ ${esc(trunc(l.payload,110))}</span><br><span class="muted">← ${esc(trunc(l.response,110))}</span>`;
     const dy=y+29;
     if(l.via&&svcs.length){
       // through the namespace wall, into the Service's front door, then kube-proxy picks ONE pod
@@ -672,8 +694,8 @@ function openGate(lid){
   const st=[{at:nameOf(l.src),text:"caller",end:true}];
   (l.hops||[]).forEach(h=>{if(h.at!==st[st.length-1].at)st.push({at:h.at,text:h.text});else st[st.length-1].text=h.text;});
   if(st[st.length-1].at!==nameOf(l.dst))st.push({at:nameOf(l.dst),text:"answers / receives",end:true});else st[st.length-1].end=true;
-  const n=st.length,W=1060,H=430,x0=70,x1=W-70,gap=(x1-x0)/Math.max(1,n-1),py=250;
-  let s=`<svg viewBox="0 0 ${W} ${H}" class="gsvg" role="img" aria-label="Route of this connection"><defs><marker id="ga" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:${KCOL[l.kind]}"/></marker></defs>`;
+  const n=st.length,W=1060,H=l.oneWay?560:640,x0=70,x1=W-70,gap=(x1-x0)/Math.max(1,n-1),py=250;
+  let s=`<svg viewBox="0 0 ${W} ${H}" class="gsvg" role="img" aria-label="Route of this connection"><defs><marker id="ga" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:${KCOL[l.kind]}"/></marker><marker id="gr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:none;stroke:${KCOL[l.kind]};stroke-width:1.6"/></marker></defs>`;
   s+=`<path id="gpipe" d="M${x0},${py} L${x1},${py}" class="gbg"/><path d="M${x0},${py} L${x1},${py}" style="stroke:${KCOL[l.kind]};stroke-dasharray:${DASH[l.kind]}" class="gln" marker-end="url(#ga)"/>`;
   st.forEach((p,i)=>{const x=x0+i*gap;const big=p.end;
     s+=`<g class="stn"><circle cx="${x}" cy="${py}" r="${big?20:13}" class="${big?"stE":"stM"}" style="stroke:${KCOL[l.kind]}"/>`;
@@ -681,6 +703,17 @@ function openGate(lid){
     wrap(p.text,Math.max(14,Math.floor(gap/7.4))).slice(0,5).forEach((ln,k)=>s+=`<text x="${x}" y="${py+(big?62:56)+k*15}" text-anchor="middle" class="stS">${esc(ln)}</text>`);
     s+=`</g>`;});
   if(RMOTION)s+=`<circle r="9" style="fill:${KCOL[l.kind]}" class="gpk"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#gpipe"/></animateMotion></circle>`;
+  // the answer travels back on a lower lane (or explicitly doesn't)
+  const ry=py+170;
+  if(l.oneWay){s+=`<text x="${W/2}" y="${ry}" text-anchor="middle" class="noreply2">✕ nothing comes back</text>`;wrap(l.response,120).forEach((ln,k)=>s+=`<text x="${W/2}" y="${ry+22+k*16}" text-anchor="middle" class="stS">${esc(ln)}</text>`);}
+  else{
+    s+=`<path id="gret" d="M${x1},${ry} L${x0},${ry}" class="gbg2"/><path d="M${x1},${ry} L${x0},${ry}" style="stroke:${KCOL[l.kind]}" class="gln2" marker-end="url(#gr)"/>`;
+    s+=`<text x="${x1}" y="${ry-12}" text-anchor="end" class="stS">the answer comes back the same way</text>`;
+    if(RMOTION)s+=`<circle r="8" class="gpk2" style="stroke:${KCOL[l.kind]}"><animateMotion dur="3.2s" begin="1.6s" repeatCount="indefinite"><mpath href="#gret"/></animateMotion></circle>`;
+    const rl=wrap(l.response,118).slice(0,7),rh=rl.length*16+22,rby=ry+30;
+    s+=`<g class="bub"><path d="M${W/2-12},${rby} l12,-16 l12,16z"/><rect x="${x0-10}" y="${rby}" width="${x1-x0+20}" height="${rh}" rx="12"/>`;
+    rl.forEach((ln,k)=>s+=`<text x="${x0+6}" y="${rby+20+k*16}" class="bubT">${esc(ln)}</text>`);
+    s+=`</g>`;}
   // payload bubble above the pipe
   const lines=wrap(l.payload,118).slice(0,8);const bh=lines.length*16+22;
   s+=`<g class="bub"><rect x="${x0-10}" y="${Math.max(8,py-60-bh)}" width="${x1-x0+20}" height="${bh}" rx="12"/><path d="M${W/2-12},${Math.max(8,py-60-bh)+bh} l12,16 l12,-16z"/>`;
@@ -701,7 +734,7 @@ function openGate(lid){
       ${ENT[l.src]&&l.src!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.src)}')">Walk into ${esc(nameOf(l.src))}</button>`:""}
       ${ENT[l.dst]&&l.dst!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.dst)}')">Walk into ${esc(nameOf(l.dst))}</button>`:""}</div>
     <details class="det"><summary>Details (text)</summary>
-    <h4>Full payload</h4><pre class="pl">${esc(l.payload)}</pre>${routes}
+    <h4>Request (what goes in)</h4><pre class="pl">${esc(l.payload)}</pre><h4>Answer (what comes back)</h4><pre class="pl">${esc(l.response)}</pre>${routes}
     <h4>Defined by (evidence)</h4><ul class="ev">${l.evidence.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     <h4>Isolation at this gate</h4><ul class="ev" style="font-family:var(--sans);font-size:13px">${isoNotes.map(x=>`<li>${x}</li>`).join("")||"<li>-</li>"}</ul></details>`;
   drawer.classList.add("on");$("#dClose").focus();
