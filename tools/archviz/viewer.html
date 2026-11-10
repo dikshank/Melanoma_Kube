@@ -92,6 +92,16 @@ svg.focus .node:not(.nb):not(.sel):not(.pulse){opacity:.22}
 svg.focus .edge:not(.hot){opacity:.06}
 svg.focus .edge.hot path.ln{stroke-width:3.4}
 .flowdot{fill:var(--accent);stroke:var(--panel);stroke-width:2}
+.edge path.ret{fill:none;stroke-width:1.2;stroke-dasharray:2 3;opacity:.7}
+.k-user path.ret{stroke:var(--user)} .k-http path.ret{stroke:var(--http)} .k-db path.ret{stroke:var(--db)} .k-metric path.ret{stroke:var(--metric)}
+.k-file path.ret{stroke:var(--file)} .k-config path.ret{stroke:var(--config)} .k-probe path.ret{stroke:var(--probe)} .k-control path.ret{stroke:var(--control)}
+.mkr-user,.mkr-http,.mkr-db,.mkr-metric,.mkr-file,.mkr-config,.mkr-probe,.mkr-control{fill:none;stroke-width:1.5}
+.mkr-user{stroke:var(--user)} .mkr-http{stroke:var(--http)} .mkr-db{stroke:var(--db)} .mkr-metric{stroke:var(--metric)} .mkr-file{stroke:var(--file)} .mkr-config{stroke:var(--config)} .mkr-probe{stroke:var(--probe)} .mkr-control{stroke:var(--control)}
+.apk.req{fill:var(--ink);opacity:.75} .apk.rsp{fill:var(--panel);stroke:var(--ink);stroke-width:1.6;opacity:.75}
+svg.noanim .apk{display:none}
+svg.focus .edge.hot .apk{opacity:1}
+svg.focus .edge.hot path.ret{stroke-width:2.2;opacity:1}
+.zoom button[aria-pressed="false"]{opacity:.5}
 .hide-user .k-user,.hide-http .k-http,.hide-db .k-db,.hide-metric .k-metric,.hide-file .k-file,.hide-config .k-config,.hide-probe .k-probe,.hide-control .k-control{display:none}
 
 /* flow player */
@@ -243,9 +253,9 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
 <section class="view on" id="mapView">
   <div id="mapWrap">
     <div class="filters" id="filters" aria-label="Show or hide gate types"></div>
-    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit to screen">⤢</button></div>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit to screen">⤢</button><button id="zanim" aria-label="Animate traffic" aria-pressed="true" title="Animate traffic (request ● / answer ○)">●○</button></div>
     <svg id="map" role="img" aria-label="Map of every component, volume and connection"></svg>
-    <div class="hint">Drag to pan · scroll to zoom · click a box for details · double-click to enter its room · click a line to open that gate</div>
+    <div class="hint">● solid line = request · ○ thin line = answer coming back · ✕ = no reply (UDP) · Drag to pan · scroll to zoom · click a box for details · double-click to enter its room · click a line to open that gate</div>
     <div class="player" id="player" aria-live="polite">
       <div class="row"><span class="t" id="pTitle"></span><span class="n" id="pNum"></span><div class="bar"><i id="pBar"></i></div>
         <button class="ghost" id="pPrev">◀ Prev</button><button class="ghost" id="pPlay">▶ Play</button><button class="ghost" id="pNext">Next ▶</button><button class="ghost" id="pRoom">Open room</button><button class="ghost" id="pClose">✕</button></div>
@@ -316,6 +326,7 @@ function showView(v){document.querySelectorAll(".tabs button").forEach(b=>b.setA
 /* ───────── MAP ───────── */
 const svg=$("#map");
 const defs=el("defs",{},svg);
+Object.keys(KINDS).forEach(k=>{const mr=el("marker",{id:"r-"+k,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"6",markerHeight:"6",orient:"auto-start-reverse"},defs);el("path",{d:"M0,0L10,5L0,10z",class:"mkr-"+k},mr);});
 Object.keys(KINDS).forEach(k=>{const mk=el("marker",{id:"a-"+k,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},defs);el("path",{d:"M0,0L10,5L0,10z",class:"mk-"+k},mk);});
 const gZ=el("g",{},svg), gE=el("g",{},svg), gN=el("g",{},svg), gF=el("g",{},svg);
 
@@ -376,7 +387,20 @@ DATA.links.forEach(l=>{
   const p1=border(src,cx,cy),p2=border(dst,cx,cy);
   const g=el("g",{class:"edge k-"+l.kind,"data-id":l.id,"data-src":src,"data-dst":dst},gE);
   const d=`M${p1.x},${p1.y}Q${cx},${cy} ${p2.x},${p2.y}`;
-  const ln=el("path",{class:"ln",d,"marker-end":`url(#a-${l.kind})`},g);
+  const ln=el("path",{class:"ln",id:"mE"+l.id,d,"marker-end":`url(#a-${l.kind})`},g);
+  // the answer: a thin lane beside the request, arrow pointing back to the caller
+  const nx=-(p2.y-p1.y),ny=(p2.x-p1.x),nl=Math.hypot(nx,ny)||1,o=7,ox=nx/nl*o,oy=ny/nl*o;
+  if(!l.oneWay&&!(l.kind==="file"&&l.mode==="ro")){
+    const d2=`M${p2.x+ox},${p2.y+oy}Q${cx+ox},${cy+oy} ${p1.x+ox},${p1.y+oy}`;
+    el("path",{class:"ret",id:"mR"+l.id,d:d2,"marker-end":`url(#r-${l.kind})`},g);
+    const ap=el("circle",{r:4,class:"apk req"},g);const a1=el("animateMotion",{dur:"2.6s",repeatCount:"indefinite"},ap);el("mpath",{href:"#mE"+l.id},a1);
+    const rp=el("circle",{r:3.6,class:"apk rsp"},g);const a2=el("animateMotion",{dur:"2.6s",begin:"1.3s",repeatCount:"indefinite"},rp);el("mpath",{href:"#mR"+l.id},a2);
+  } else if(l.oneWay&&l.kind!=="config"){
+    tx(g,p1.x+(p2.x-p1.x)*.12+ox*2,p1.y+(p2.y-p1.y)*.12+oy*2+4,"✕","noreply","middle");
+    const ap=el("circle",{r:4,class:"apk req"},g);const a1=el("animateMotion",{dur:"2.6s",repeatCount:"indefinite"},ap);el("mpath",{href:"#mE"+l.id},a1);
+  } else {
+    const ap=el("circle",{r:4,class:"apk req"},g);const a1=el("animateMotion",{dur:"2.6s",repeatCount:"indefinite",keyPoints:l.kind==="file"&&l.mode==="ro"?"1;0":"0;1",keyTimes:"0;1",calcMode:"linear"},ap);el("mpath",{href:"#mE"+l.id},a1);
+  }
   el("path",{class:"hit",d},g);
   if(["user","http","db","metric"].includes(l.kind)){const lx=.25*p1.x+.5*cx+.25*p2.x,ly=.25*p1.y+.5*cy+.25*p2.y;const s=trunc(l.label,30);const w=s.length*5.7+10;el("rect",{class:"lb",x:lx-w/2,y:ly-8,width:w,height:15,rx:4},g);tx(g,lx,ly+3.5,s,"","middle");}
   const t=el("title",{},g);t.textContent=`${nameOf(l.src)} → ${nameOf(l.dst)} · ${l.proto}${l.port?" :"+l.port:""}`;
@@ -397,6 +421,10 @@ svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY>0?1.12:1/1.1
 $("#zin").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(1/1.25,r.left+r.width/2,r.top+r.height/2);};
 $("#zout").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(1.25,r.left+r.width/2,r.top+r.height/2);};
 $("#zfit").onclick=fit;
+const zanim=$("#zanim");
+function setAnim(on){zanim.setAttribute("aria-pressed",String(on));svg.classList.toggle("noanim",!on);on?svg.unpauseAnimations():svg.pauseAnimations();}
+zanim.onclick=()=>setAnim(zanim.getAttribute("aria-pressed")!=="true");
+if(matchMedia("(prefers-reduced-motion: reduce)").matches)setAnim(false);
 let drag=null,moved=false;
 svg.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,vb:{...vb}};moved=false;});
 window.addEventListener("pointermove",e=>{if(!drag)return;const r=svg.getBoundingClientRect();const dx=(e.clientX-drag.x)/r.width*vb.w,dy=(e.clientY-drag.y)/r.height*vb.h;if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)>4){moved=true;$("#mapWrap").classList.add("drag");}vb.x=drag.vb.x-dx;vb.y=drag.vb.y-dy;setVB();});
@@ -714,10 +742,10 @@ function openGate(lid,group){
   const n=st.length,W=1060,H=l.oneWay?560:640,x0=70,x1=W-70,gap=(x1-x0)/Math.max(1,n-1),py=250;
   let s=`<svg viewBox="0 0 ${W} ${H}" class="gsvg" role="img" aria-label="Route of this connection"><defs><marker id="ga" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:${KCOL[l.kind]}"/></marker><marker id="gr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:none;stroke:${KCOL[l.kind]};stroke-width:1.6"/></marker></defs>`;
   s+=`<path id="gpipe" d="M${x0},${py} L${x1},${py}" class="gbg"/><path d="M${x0},${py} L${x1},${py}" style="stroke:${KCOL[l.kind]};stroke-dasharray:${DASH[l.kind]}" class="gln" marker-end="url(#ga)"/>`;
-  st.forEach((p,i)=>{const x=x0+i*gap;const big=p.end;
+  st.forEach((p,i)=>{const x=x0+i*gap;const big=p.end;const anc=i===0?"start":i===n-1?"end":"middle",tx_=i===0?x-24:i===n-1?x+24:x;
     s+=`<g class="stn"><circle cx="${x}" cy="${py}" r="${big?20:13}" class="${big?"stE":"stM"}" style="stroke:${KCOL[l.kind]}"/>`;
-    s+=`<text x="${x}" y="${py+(big?44:38)}" text-anchor="middle" class="stT">${esc(trunc(p.at,24))}</text>`;
-    wrap(p.text,Math.max(14,Math.floor(gap/7.4))).slice(0,5).forEach((ln,k)=>s+=`<text x="${x}" y="${py+(big?62:56)+k*15}" text-anchor="middle" class="stS">${esc(ln)}</text>`);
+    s+=`<text x="${tx_}" y="${py+(big?44:38)}" text-anchor="${anc}" class="stT">${esc(trunc(p.at,24))}</text>`;
+    wrap(p.text,Math.max(14,Math.floor((n<=2?(x1-x0)/2.4:gap)/7.4))).slice(0,5).forEach((ln,k)=>s+=`<text x="${tx_}" y="${py+(big?62:56)+k*15}" text-anchor="${anc}" class="stS">${esc(ln)}</text>`);
     s+=`</g>`;});
   if(RMOTION)s+=`<circle r="9" style="fill:${KCOL[l.kind]}" class="gpk"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#gpipe"/></animateMotion></circle>`;
   // the answer travels back on a lower lane (or explicitly doesn't)
