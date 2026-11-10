@@ -209,6 +209,11 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
 .legend2{max-width:1500px;margin:10px auto 0;display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink)}
 .legend2 span{display:inline-flex;align-items:center;gap:6px} .legend2 i{display:inline-block;width:22px;height:0}
 .muted{color:var(--muted)}
+.ih{font:600 10.5px var(--sans);fill:var(--accent)}
+.rbtn rect{fill:var(--soft);stroke:var(--line)} .rbtn:hover rect{stroke:var(--accent)} .rbt{font:700 10.5px var(--sans);fill:var(--ink)} .rbtn{cursor:pointer}
+.gtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.gtabs button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font:600 12.5px var(--mono)}
+.gtabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .det{max-width:1500px;margin:14px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 16px}
 .det summary{cursor:pointer;font:700 14px var(--sans)}
 .det h4{font:700 12px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
@@ -471,7 +476,15 @@ function shiftPath(d,off){
 function showTip(e,html){tip.innerHTML=html;tip.style.display="block";tip.style.left=Math.min(e.clientX+14,innerWidth-340)+"px";tip.style.top=(e.clientY+14)+"px";}
 function hideTip(){tip.style.display="none";}
 function door(p,x,y,kind,label,vertical){const g=el("g",{class:"door2"},p);el("rect",{x:x-7,y:y-17,width:14,height:34,rx:3,style:`fill:${KCOL[kind]}`},g);el("rect",{x:x-3,y:y-11,width:6,height:22,rx:1,class:"dgap"},g);if(label)tx(g,x+(vertical==="left"?-12:12),y-21,label,"dlab",vertical==="left"?"end":"start");return g;}
-function iconCard(p,x,y,w,h,title,sub,kind,id){const g=el("g",{class:"icard"+(id&&ENT[id]?" go":""),"data-id":id||""},p);el("rect",{x,y,width:w,height:h,rx:10,style:`stroke:${KCOL[kind]||"var(--muted)"}`},g);tx(g,x+12,y+22,trunc(title,22),"it");if(sub)tx(g,x+12,y+39,trunc(sub,28),"is");if(id&&ENT[id]){g.addEventListener("click",e=>{e.stopPropagation();openRoom(id);});const t=el("title",{},g);t.textContent="Enter "+nameOf(id)+"'s room";}return g;}
+function iconCard(p,x,y,w,h,title,sub,kind,id,lids){
+  const g=el("g",{class:"icard go","data-id":id||""},p);
+  el("rect",{x,y,width:w,height:h,rx:10,style:`stroke:${KCOL[kind]||"var(--muted)"}`},g);
+  tx(g,x+12,y+22,trunc(title,20),"it");if(sub)tx(g,x+12,y+39,trunc(sub,30),"is");
+  if(lids&&lids.length){tx(g,x+12,y+h-10,lids.length>1?`click: ${lids.length} connections · sent ↔ received`:"click: what's sent ↔ what comes back","ih");
+    g.addEventListener("click",e=>{e.stopPropagation();openGates(lids);});}
+  if(id&&ENT[id]&&id!==roomId){const rb=el("g",{class:"rbtn"},g);el("rect",{x:x+w-62,y:y+6,width:54,height:20,rx:10},rb);tx(rb,x+w-35,y+20,"room ↗","rbt","middle");
+    rb.addEventListener("click",e=>{e.stopPropagation();openRoom(id);});const t=el("title",{},rb);t.textContent="Walk into "+nameOf(id)+"'s room";}
+  return g;}
 function badge(p,x,y,icon,text,sev){const w=Math.max(120,text.length*7.6+46);const g=el("g",{class:"badge "+(sev||"")},p);el("rect",{x,y,width:w,height:30,rx:15},g);tx(g,x+14,y+20,icon,"bi");tx(g,x+34,y+20,text,"bt");return w;}
 function cylinder(p,x,y,w,h,title,sub,ro,id){const g=el("g",{class:"cyl"+(id?" go":""),"data-id":id||""},p);const r=9;
   el("path",{d:`M${x},${y+r}A${w/2},${r} 0 0 1 ${x+w},${y+r}L${x+w},${y+h-r}A${w/2},${r} 0 0 1 ${x},${y+h-r}Z`},g);el("path",{class:"cylt",d:`M${x},${y+r}A${w/2},${r} 0 0 0 ${x+w},${y+r}`},g);
@@ -485,7 +498,7 @@ function openRoom(id){
   $("#rCrumb").textContent=`Map › ${e.group} › ${e.type==="component"?o.kind:e.type}`;
   $("#rTitle").textContent=e.name;
   $("#rActions").innerHTML=`<button class="ghost" onclick="closeRoom();focusNode('${esc(id)}');panTo('${esc(id)}');side('${esc(id)}')">Show on map</button>`;
-  const body=$("#rBody");body.innerHTML=`<div class="plan"><svg id="plan" role="img" aria-label="Floor plan of ${esc(e.name)}"></svg></div><div class="legend2">${Object.entries(KINDS).map(([k,v])=>`<span><i style="border-top:3px ${DASH[k]?"dashed":"solid"} ${KCOL[k]}"></i>${v}</span>`).join("")}<span><i style="border-top:3px solid var(--muted)"></i>● request</span><span><i style="border-top:1.5px dotted var(--muted)"></i>○ answer coming back</span><span class="muted">· hover a pipe for one line · click a pipe to follow it · click any box outside the walls to walk into that room</span></div><details class="det"><summary>Details (text)</summary><div id="rText"></div></details>`;
+  const body=$("#rBody");body.innerHTML=`<div class="plan"><svg id="plan" role="img" aria-label="Floor plan of ${esc(e.name)}"></svg></div><div class="legend2">${Object.entries(KINDS).map(([k,v])=>`<span><i style="border-top:3px ${DASH[k]?"dashed":"solid"} ${KCOL[k]}"></i>${v}</span>`).join("")}<span><i style="border-top:3px solid var(--muted)"></i>● request</span><span><i style="border-top:1.5px dotted var(--muted)"></i>○ answer coming back</span><span class="muted">· <b>click a card or pipe</b> to see what's sent and what comes back · <b>room ↗</b> walks into that component · hover for a one-line summary</span></div><details class="det"><summary>Details (text)</summary><div id="rText"></div></details>`;
   const svg=$("#plan");roomDefs(svg);
   if(e.type==="component")drawComponentRoom(svg,id,o,inc,out);
   else drawHubRoom(svg,id,e,o,inc,out);
@@ -543,12 +556,12 @@ function drawComponentRoom(svg,id,o,inc,out){
   if(!cfg.length) tx(svg,SV.x+20,NS_.y+75,"no ConfigMaps or Secrets injected","wl");
   // ── incoming (left)
   const netIn=inc.filter(l=>!["config","probe"].includes(l.kind));
-  const step=Math.min(130,(NS_.h-120)/Math.max(1,netIn.length));
+  const step=Math.max(78,Math.min(130,(NS_.h-120)/Math.max(1,netIn.length)));
   netIn.forEach((l,i)=>{
     const y=NS_.y+70+i*step+step/2-30;
-    iconCard(svg,20,y,230,58,nameOf(l.src),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.src);
+    iconCard(svg,20,y,230,66,nameOf(l.src),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.src,[l.id]);
     const tipHtml=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}${l.via&&SVC[l.via]?" · via Service "+esc(SVC[l.via].name):""}<br><span class="muted">→ ${esc(trunc(l.payload,110))}</span><br><span class="muted">← ${esc(trunc(l.response,110))}</span>`;
-    const dy=y+29;
+    const dy=y+33;
     if(l.via&&svcs.length){
       // through the namespace wall, into the Service's front door, then kube-proxy picks ONE pod
       door(svg,NS_.x,dy,l.kind,l.port?":"+l.port:"","left");
@@ -567,15 +580,15 @@ function drawComponentRoom(svg,id,o,inc,out){
   if(!netIn.length) tx(svg,30,NS_.y+90,"Nothing calls in.","wl");
   // ── kubelet (health inspector)
   const pr=inc.filter(l=>l.kind==="probe");
-  if(pr.length){const kx=20,ky=NS_.y+NS_.h-100;iconCard(svg,kx,ky,230,74,"🩺 kubelet",pr.map(l=>l.label.split(":")[0]).join(" · "),"probe","cp:kubelet");
-    tx(svg,kx+12,ky+60,"→ pod IPs, never the Service","is");
+  if(pr.length){const kx=20,ky=NS_.y+NS_.h-100;iconCard(svg,kx,ky,230,74,"🩺 kubelet",pr.map(l=>l.label.split(":")[0]).join(" · "),"probe","cp:kubelet",pr.map(l=>l.id));
+    tx(svg,kx+12,ky+92,"→ pod IPs, never the Service","is");
     pods.forEach((pd,k)=>pr.forEach((l,j)=>{const bx_=pd.x+pd.w-24-j*16;pipe(svg,`M250,${ky+37} C${NS_.x+80},${ky+37} ${bx_},${pd.y+pd.h+70} ${bx_},${pd.y+pd.h+8}`,"probe",l.id,`<b>${esc(l.label)}</b><br>${esc(l.payload)}`,{dur:1.8+j*.4});}));}
   // ── outgoing (right), except volumes
   const netOut=out.filter(l=>l.kind!=="file");
-  const ostep=Math.min(130,(NS_.h-120)/Math.max(1,netOut.length));
+  const ostep=Math.max(78,Math.min(130,(NS_.h-120)/Math.max(1,netOut.length)));
   const ox=pods.length?pods[pods.length-1].x+pods[pods.length-1].w:SV.x+SV.w;
-  netOut.forEach((l,i)=>{const y=NS_.y+70+i*ostep+ostep/2-30,dy=y+29;
-    iconCard(svg,W-250,y,230,58,nameOf(l.dst),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.dst);
+  netOut.forEach((l,i)=>{const y=NS_.y+70+i*ostep+ostep/2-30,dy=y+33;
+    iconCard(svg,W-250,y,230,66,nameOf(l.dst),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.dst,[l.id]);
     const sy=pods.length?pods[pods.length-1].y+70+((i*41)%(ph-110)):SV.y+60;
     door(svg,NS_.x+NS_.w,dy,l.kind,l.port?":"+l.port:"","right");
     pipe(svg,`M${ox+6},${sy} C${NS_.x+NS_.w-60},${sy} ${NS_.x+NS_.w-20},${dy} ${W-252},${dy}`,l.kind,l.id,
@@ -604,10 +617,13 @@ function drawComponentRoom(svg,id,o,inc,out){
   tx(svg,SV.x+SV.w-20,SV.y+28,`${o.kind}${o.replicas!=null?" ×"+o.replicas:""}${o.strategy?" · "+o.strategy:""}`,"wt","end");
 }
 
-/* PVC / ConfigMap / Secret / control plane / external: one object in the middle, gates on both sides */
+/* PVC / ConfigMap / Secret / control plane / external: one object in the middle, one card per neighbour */
+function groupBy(list,side){const m=new Map();list.forEach(l=>{const k=(side==="in"?l.src:l.dst)+"|"+l.kind;if(!m.has(k))m.set(k,[]);m.get(k).push(l);});return [...m.values()];}
 function drawHubRoom(svg,id,e,o,inc,out){
-  const W=1440,H=760;svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  const C={x:500,y:170,w:440,h:380};
+  const gin=groupBy(inc,"in"),gout=groupBy(out,"out");
+  const ROW=84,W=1440,rows=Math.max(gin.length,gout.length,1),H=Math.max(760,rows*ROW+120);
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const C={x:500,y:Math.max(170,H/2-190),w:440,h:380};
   const g=el("g",{},svg);
   if(e.type==="pvc"){
     el("rect",{x:C.x-60,y:C.y-90,width:C.w+120,height:C.h+170,rx:24,class:"wall-ns"},g);tx(g,C.x-40,C.y-62,`namespace: ${DATA.meta.namespace} · StorageClass ${o.storageClass}`,"wl");
@@ -615,7 +631,7 @@ function drawHubRoom(svg,id,e,o,inc,out){
     el("path",{class:"bigcylt",d:`M${C.x},${C.y+r}A${C.w/2},${r} 0 0 0 ${C.x+C.w},${C.y+r}`},g);
     tx(g,C.x+C.w/2,C.y+64,o.name,"wt","middle");tx(g,C.x+C.w/2,C.y+86,`${o.size} · ${(o.access||[]).join(", ")} · ${o.phase}`,"ps","middle");
     mtext(g,C.x+30,C.y+124,(o.contents||"").split(" · ").slice(0,8).map(s=>"📁 "+trunc(s,48)),"cp","start",22);
-    tx(g,C.x+C.w/2,C.y+C.h+40,"a hostPath folder on the node, bind-mounted into each pod below","wl","middle");
+    tx(g,C.x+C.w/2,C.y+C.h+40,"a hostPath folder on the node, bind-mounted into each pod on the left","wl","middle");
     tx(g,C.x+C.w/2,C.y+C.h+60,"RWO = one NODE at a time (not one pod)","wl","middle");
   } else if(e.type==="config"){
     el("rect",{x:C.x,y:C.y,width:C.w,height:C.h,rx:16,class:"envbig"},g);
@@ -628,16 +644,15 @@ function drawHubRoom(svg,id,e,o,inc,out){
     mtext(g,C.x+30,C.y+84,wrap(o.what,52),"cp","start",20);
     (o.pods||[]).slice(0,2).forEach((p,i)=>tx(g,C.x+30,C.y+C.h-50+i*20,`${p.pod} · ${p.ip}`,"ps"));
   }
-  const hubIn=inc.filter(l=>l.kind!=="probe"||e.type!=="cp"),hubOut=out;
-  const lay=(list,side)=>{const step=Math.min(120,(H-120)/Math.max(1,list.length));list.slice(0,14).forEach((l,i)=>{
-    const other=side==="in"?l.src:l.dst,y=60+i*step+step/2-29,dy=y+29;
-    const cx_=side==="in"?20:W-270;iconCard(svg,cx_,y,250,58,nameOf(other),side==="in"?l.label:`${l.label}`,l.kind,other);
-    const ty=C.y+40+((i*37)%(C.h-80));
+  const lay=(groups,side)=>{groups.forEach((grp,i)=>{
+    const l=grp[0],other=side==="in"?l.src:l.dst,y=60+i*ROW,dy=y+33;
+    const sub=grp.length>1?grp.map(x=>x.label.split(":")[0]).join(" · "):l.label;
+    const cx_=side==="in"?20:W-270;iconCard(svg,cx_,y,250,68,nameOf(other),sub,l.kind,other,grp.map(x=>x.id));
+    const ty=C.y+30+((i*(C.h-60))/Math.max(1,groups.length-1||1));
     const d=side==="in"?`M270,${dy} C${C.x-140},${dy} ${C.x-80},${ty} ${C.x-8},${ty}`:`M${C.x+C.w+8},${ty} C${C.x+C.w+80},${ty} ${W-410},${dy} ${W-272},${dy}`;
-    pipe(svg,d,l.kind,l.id,`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(l.label)}<br><span class="muted">${esc(trunc(l.payload,140))}</span>`,{dur:2.2,reverse:l.kind==="file"&&l.mode==="ro"&&side==="in"});});
-    if(list.length>14)tx(svg,side==="in"?20:W-270,H-20,`+${list.length-14} more (see Details)`,"wl");};
-  lay(hubIn,"in");lay(hubOut,"out");
-  if(!hubIn.length)tx(svg,30,90,"Nothing calls in.","wl");if(!hubOut.length)tx(svg,W-260,90,"Never calls out.","wl");
+    pipe(svg,d,l.kind,l.id,`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b>${grp.length>1?` (${grp.length} connections)`:""}<br>→ ${esc(trunc(l.payload,110))}<br><span class="muted">← ${esc(trunc(l.response,110))}</span>`,{dur:2.2,reverse:l.kind==="file"&&l.mode==="ro"&&side==="in"});});};
+  lay(gin,"in");lay(gout,"out");
+  if(!gin.length)tx(svg,30,90,"Nothing calls in.","wl");if(!gout.length)tx(svg,W-260,90,"Never calls out.","wl");
 }
 
 /* the previous text view, now behind "Details" */
@@ -685,7 +700,9 @@ function isolation(id){
 
 /* ───────── GATE: the connection as a pipeline ───────── */
 $("#dClose").onclick=()=>drawer.classList.remove("on");
-function openGate(lid){
+function openGates(lids){openGate(lids[0],lids);}
+window.openGates=openGates;
+function openGate(lid,group){
   const l=LINK[lid];if(!l)return;hideTip();
   $("#dTitle").textContent=`${nameOf(l.src)} → ${nameOf(l.dst)}`;
   const via=l.via&&SVC[l.via]?SVC[l.via]:null;
@@ -728,7 +745,8 @@ function openGate(lid){
   if(l.kind==="probe") isoNotes.push("From the node (kubelet) straight to the pod IP: bypasses the Service and any tunnel.");
   if(l.src==="ext:edge"||l.src==="ext:internet") isoNotes.push("The only path from the internet into the cluster. Nothing listens on your laptop; the tunnel agent dialled out.");
   const routes=l.routes?`<h4>Routes through this gate</h4><pre class="pl">${l.routes.map(r=>`${(r.method||"?").padEnd(6)} ${r.path.padEnd(10)} → ${r.handler}`).join("\n")}</pre>`:"";
-  $("#dBody").innerHTML=`<div class="gwrap">${s}</div>
+  const tabs=group&&group.length>1?`<div class="gtabs" role="tablist">${group.map(x=>`<button role="tab" aria-selected="${x===lid}" onclick='openGate("${x}",${JSON.stringify(group)})'>${esc(trunc(LINK[x].label,34))}</button>`).join("")}</div>`:"";
+  $("#dBody").innerHTML=`${tabs}<div class="gwrap">${s}</div>
     <div style="display:flex;gap:8px;margin:6px 0 4px;flex-wrap:wrap">
       <button class="big" onclick="gateOnMap('${l.id}')">Play on the map</button>
       ${ENT[l.src]&&l.src!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.src)}')">Walk into ${esc(nameOf(l.src))}</button>`:""}
