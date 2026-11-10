@@ -220,6 +220,7 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
 .legend2 span{display:inline-flex;align-items:center;gap:6px} .legend2 i{display:inline-block;width:22px;height:0}
 .muted{color:var(--muted)}
 .ih{font:600 10.5px var(--sans);fill:var(--accent)}
+.sh{font:600 11px var(--mono);fill:var(--ink)} .shared{cursor:pointer} .shared:hover .sh{fill:var(--accent)}
 .rbtn rect{fill:var(--soft);stroke:var(--line)} .rbtn:hover rect{stroke:var(--accent)} .rbt{font:700 10.5px var(--sans);fill:var(--ink)} .rbtn{cursor:pointer}
 .gtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .gtabs button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font:600 12.5px var(--mono)}
@@ -402,6 +403,8 @@ DATA.links.forEach(l=>{
     const ap=el("circle",{r:4,class:"apk req"},g);const a1=el("animateMotion",{dur:"2.6s",repeatCount:"indefinite",keyPoints:l.kind==="file"&&l.mode==="ro"?"1;0":"0;1",keyTimes:"0;1",calcMode:"linear"},ap);el("mpath",{href:"#mE"+l.id},a1);
   }
   el("path",{class:"hit",d},g);
+  const srcObj=ENT[l.src]?.obj, npods=srcObj&&srcObj.pods?(srcObj.pods.length||srcObj.replicas||1):1;
+  if(l.kind==="file"&&npods>1){const lx=.25*p1.x+.5*cx+.25*p2.x,ly=.25*p1.y+.5*cy+.25*p2.y;const s=`×${npods} pods ${l.mode==="ro"?"ro":"rw"}`;const w=s.length*5.7+10;el("rect",{class:"lb",x:lx-w/2,y:ly-8,width:w,height:15,rx:4},g);tx(g,lx,ly+3.5,s,"","middle");}
   if(["user","http","db","metric"].includes(l.kind)){const lx=.25*p1.x+.5*cx+.25*p2.x,ly=.25*p1.y+.5*cy+.25*p2.y;const s=trunc(l.label,30);const w=s.length*5.7+10;el("rect",{class:"lb",x:lx-w/2,y:ly-8,width:w,height:15,rx:4},g);tx(g,lx,ly+3.5,s,"","middle");}
   const t=el("title",{},g);t.textContent=`${nameOf(l.src)} → ${nameOf(l.dst)} · ${l.proto}${l.port?" :"+l.port:""}`;
   EDGE[l.id]=ln;
@@ -489,7 +492,7 @@ function pipe(p,d,kind,lid,label,opts){
     const rl=el("path",{id:rid,d:d2,class:"rln",style:`stroke:${KCOL[kind]}`,"marker-start":`url(#rr-${kind})`},g);
     if(RMOTION){const c=el("circle",{r:4,class:"rpk",style:`stroke:${KCOL[kind]}`},g);const am=el("animateMotion",{dur:((opts.dur||2.4)*1.1)+"s",begin:((opts.dur||2.4)/2)+"s",repeatCount:"indefinite",keyPoints:"1;0",keyTimes:"0;1",calcMode:"linear"},c);const mp=el("mpath",{},am);mp.setAttribute("href","#"+rid);}
   }
-  if(L_&&L_.oneWay&&L_.kind!=="config"){const m=d.match(/M(-?[\d.]+),(-?[\d.]+)/);if(m){const t=tx(g,+m[1]+10,+m[2]-8,"✕ no reply (UDP)","noreply");}}
+  if(L_&&L_.oneWay&&L_.kind!=="config"&&!opts.noLabel){const m=d.match(/M(-?[\d.]+),(-?[\d.]+)/);if(m){const t=tx(g,+m[1]+10,+m[2]-8,"✕ no reply (UDP)","noreply");}}
   if(lid){g.style.cursor="pointer";g.addEventListener("click",e=>{e.stopPropagation();openGate(lid);});
     g.addEventListener("mousemove",e=>showTip(e,label||""));g.addEventListener("mouseleave",hideTip);}
   return g;
@@ -617,18 +620,31 @@ function drawComponentRoom(svg,id,o,inc,out){
   const ox=pods.length?pods[pods.length-1].x+pods[pods.length-1].w:SV.x+SV.w;
   netOut.forEach((l,i)=>{const y=NS_.y+70+i*ostep+ostep/2-30,dy=y+33;
     iconCard(svg,W-250,y,230,66,nameOf(l.dst),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.dst,[l.id]);
-    const sy=pods.length?pods[pods.length-1].y+70+((i*41)%(ph-110)):SV.y+60;
     door(svg,NS_.x+NS_.w,dy,l.kind,l.port?":"+l.port:"","right");
-    pipe(svg,`M${ox+6},${sy} C${NS_.x+NS_.w-60},${sy} ${NS_.x+NS_.w-20},${dy} ${W-252},${dy}`,l.kind,l.id,
-      `<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}<br><span class="muted">${esc(trunc(l.payload,140))}</span>`,{dur:2.6});});
+    const tipO=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b>${pods.length>1?` (from each of the ${pods.length} pods)`:""}<br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}<br>→ ${esc(trunc(l.payload,110))}<br><span class="muted">← ${esc(trunc(l.response,110))}</span>`;
+    // every pod opens its own connection: one pipe per pod, leaving through the pod's right wall, joining at the door
+    pods.forEach((pd,k)=>{const sx=pd.x+pd.w,sy=pd.y+110+((i*37+k*14)%(ph-140));
+      const d=k===pods.length-1?`M${sx+6},${sy} C${NS_.x+NS_.w-60},${sy} ${NS_.x+NS_.w-20},${dy} ${W-252},${dy}`
+                                :`M${sx+6},${sy} C${sx+40},${sy} ${pd.x+pd.w+30},${pd.y-24} ${pods[pods.length-1].x+pods[pods.length-1].w/2},${pd.y-24} S${NS_.x+NS_.w-20},${dy} ${W-252},${dy}`;
+      const g=pipe(svg,d,l.kind,l.id,tipO,{dur:2.6+k*.35,noLabel:k<pods.length-1});if(k<pods.length-1)g.classList.add("fan");});});
   if(!netOut.length) tx(svg,W-250,NS_.y+90,"Never calls out.","wl");
   // ── volumes (floor)
   const vols=out.filter(l=>l.kind==="file");
   const vw=170,vg=26,vx0=SV.x+(SV.w-(vols.length*vw+(vols.length-1)*vg))/2;
   vols.forEach((l,i)=>{const x=vx0+i*(vw+vg),y=SV.y+SV.h+62;const pv=ENT[l.dst]?.obj;
     cylinder(svg,x,y,vw,78,nameOf(l.dst),l.path,l.mode==="ro",l.dst);
-    const srcx=pods.length?pods[Math.min(i,pods.length-1)].x+pods[0].w/2:x+vw/2;
-    pipe(svg,`M${srcx},${py+ph} C${srcx},${py+ph+40} ${x+vw/2},${y-40} ${x+vw/2},${y-2}`,"file",l.id,`<b>${esc(l.path)}</b> ${l.mode==="ro"?"read-only 🔒":"read-write"}<br>${esc(trunc(l.payload,160))}`,{dur:2,reverse:l.mode==="ro"});});
+    // EVERY pod of this workload mounts EVERY one of its volumes: one pipe per pod
+    const tipV=`<b>${esc(l.path)}</b> ${l.mode==="ro"?"read-only 🔒":"read-write"} · mounted by all ${pods.length} pod(s) here<br>${esc(trunc(l.payload,160))}`;
+    pods.forEach((pd,k)=>{const sx=pd.x+pd.w*(i+1)/(vols.length+1),ex=x+vw*(k+1)/(pods.length+1);
+      pipe(svg,`M${sx},${py+ph} C${sx},${py+ph+40} ${ex},${y-40} ${ex},${y-2}`,"file",l.id,tipV,{dur:2+k*.3,reverse:l.mode==="ro",ret:5});});
+    // ...and the same folder is shared with other workloads
+    const others=(pv?.users||[]).filter(u=>u.component!==id);
+    if(others.length){const gs=el("g",{class:"shared go"},svg);
+      tx(gs,x+vw/2,y+96,"also mounted by:","ps","middle");
+      others.slice(0,3).forEach((u,k)=>tx(gs,x+vw/2,y+111+k*14,`${trunc(nameOf(u.component),18)} (${u.readOnly?"ro":"rw"})`,"sh","middle"));
+      if(others.length>3)tx(gs,x+vw/2,y+111+3*14,`+${others.length-3} more`,"ps","middle");
+      gs.addEventListener("click",ev=>{ev.stopPropagation();openRoom(l.dst);});const t=el("title",{},gs);t.textContent="Open "+nameOf(l.dst)+" to see everyone who mounts it";}
+    else tx(svg,x+vw/2,y+100,"only this workload uses it","ps","middle");});
   if(!vols.length) tx(svg,SV.x+20,SV.y+SV.h+90,"no volumes: everything written here dies with the pod","wl");
   // ── wall badges (isolation)
   const c0=o.containers[0]||{};const r=c0.resources||{};
@@ -642,7 +658,7 @@ function drawComponentRoom(svg,id,o,inc,out){
   const roles=DATA.roleBindings.filter(b=>b.subjects.includes(o.serviceAccount));
   badge(svg,bx,by,"🪪",`SA ${o.serviceAccount}${roles.length?" + Role":""}`,roles.length?"warn":"ok");
   // ── title tags
-  tx(svg,SV.x+SV.w-20,SV.y+28,`${o.kind}${o.replicas!=null?" ×"+o.replicas:""}${o.strategy?" · "+o.strategy:""}`,"wt","end");
+  tx(svg,SV.x+SV.w-6,SV.y-14,`${o.kind}${o.replicas!=null?" ×"+o.replicas:""}${o.strategy?" · "+o.strategy:""}`,"wt","end");
 }
 
 /* PVC / ConfigMap / Secret / control plane / external: one object in the middle, one card per neighbour */
@@ -674,11 +690,15 @@ function drawHubRoom(svg,id,e,o,inc,out){
   }
   const lay=(groups,side)=>{groups.forEach((grp,i)=>{
     const l=grp[0],other=side==="in"?l.src:l.dst,y=60+i*ROW,dy=y+33;
-    const sub=grp.length>1?grp.map(x=>x.label.split(":")[0]).join(" · "):l.label;
+    let sub=grp.length>1?grp.map(x=>x.label.split(":")[0]).join(" · "):l.label;
+    if(e.type==="pvc"){const oc=ENT[other]?.obj;const np=oc?(oc.pods.length||oc.replicas||1):1;sub=`×${np} pod${np>1?"s":""} · ${l.mode==="ro"?"read-only":"read-write"} at ${l.path}`;}
     const cx_=side==="in"?20:W-270;iconCard(svg,cx_,y,250,68,nameOf(other),sub,l.kind,other,grp.map(x=>x.id));
     const ty=C.y+30+((i*(C.h-60))/Math.max(1,groups.length-1||1));
-    const d=side==="in"?`M270,${dy} C${C.x-140},${dy} ${C.x-80},${ty} ${C.x-8},${ty}`:`M${C.x+C.w+8},${ty} C${C.x+C.w+80},${ty} ${W-410},${dy} ${W-272},${dy}`;
-    pipe(svg,d,l.kind,l.id,`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b>${grp.length>1?` (${grp.length} connections)`:""}<br>→ ${esc(trunc(l.payload,110))}<br><span class="muted">← ${esc(trunc(l.response,110))}</span>`,{dur:2.2,reverse:l.kind==="file"&&l.mode==="ro"&&side==="in"});});};
+    const oc=ENT[other]?.obj, np=(e.type==="pvc"&&oc&&oc.pods)?Math.min(4,oc.pods.length||oc.replicas||1):1;
+    const tipH=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b>${grp.length>1?` (${grp.length} connections)`:""}${np>1?` · one mount per pod (×${np})`:""}<br>→ ${esc(trunc(l.payload,110))}<br><span class="muted">← ${esc(trunc(l.response,110))}</span>`;
+    for(let k=0;k<np;k++){const off=(k-(np-1)/2)*12,yy=dy+off,tt=ty+off;
+      const d=side==="in"?`M270,${yy} C${C.x-140},${yy} ${C.x-80},${tt} ${C.x-8},${tt}`:`M${C.x+C.w+8},${tt} C${C.x+C.w+80},${tt} ${W-410},${yy} ${W-272},${yy}`;
+      pipe(svg,d,l.kind,l.id,tipH,{dur:2.2+k*.3,reverse:l.kind==="file"&&l.mode==="ro"&&side==="in",ret:4});}});};
   lay(gin,"in");lay(gout,"out");
   if(!gin.length)tx(svg,30,90,"Nothing calls in.","wl");if(!gout.length)tx(svg,W-260,90,"Never calls out.","wl");
 }
