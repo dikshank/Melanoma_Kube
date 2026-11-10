@@ -157,7 +157,7 @@ svg.focus .edge.hot path.ln{stroke-width:3.4}
 .rq{max-width:1500px;margin:14px auto 0}
 
 /* GATE drawer */
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(620px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:12;transform:translateX(102%);transition:transform .18s;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,.15)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(1120px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:12;transform:translateX(102%);transition:transform .18s;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,.15)}
 .drawer.on{transform:none}
 .dhead{padding:14px 16px;border-bottom:1px solid var(--line)}
 .dhead h3{margin:0;font:700 17px/1.3 var(--sans)}
@@ -171,6 +171,49 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
 .hops li::after{content:"";position:absolute;left:2px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--accent)}
 .hops b{font:700 12.5px var(--mono)}
 .ev{margin:0;padding-left:18px;font:12px/1.6 var(--mono)}
+
+/* floor plans */
+.plan{max-width:1500px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:auto}
+#plan{display:block;width:100%;min-width:1000px;height:auto}
+.wall-ns{fill:none;stroke:var(--muted);stroke-width:2;stroke-dasharray:10 7}
+.wall-svc{fill:color-mix(in srgb,var(--accent) 7%,transparent);stroke:var(--accent);stroke-width:5}
+.wall-nosvc{fill:none;stroke:var(--line);stroke-width:2;stroke-dasharray:4 6}
+.wall-pod{fill:var(--panel);stroke:var(--ink);stroke-width:3}
+.cbox{fill:var(--soft);stroke:var(--line);stroke-width:1.5}
+.wl{font:600 12px var(--mono);fill:var(--muted)} .wls{font:700 12.5px var(--mono);fill:var(--accent)} .wt{font:800 15px var(--sans);fill:var(--ink)}
+.pt{font:700 12.5px var(--mono);fill:var(--ink)} .ps{font:400 11px var(--mono);fill:var(--muted)}
+.ck{font:700 10px var(--mono);fill:var(--muted);letter-spacing:.6px;text-transform:uppercase} .ci{font:600 12px var(--mono);fill:var(--ink)} .cp{font:400 11.5px var(--mono);fill:var(--ink)}
+.sock{fill:var(--panel);stroke:var(--ink);stroke-width:3} .sp{font:700 11px var(--mono);fill:var(--ink)}
+.pipe .pbg{fill:none;stroke:transparent;stroke-width:16}
+.pipe .pln{fill:none;stroke-width:3;opacity:.85}
+.pipe.fan .pln{stroke-width:1.8;opacity:.55}
+.pipe:hover .pln{stroke-width:5.5;opacity:1}
+.pk{opacity:.95}
+.door2 .dgap{fill:var(--panel);opacity:.85} .dlab{font:700 11.5px var(--mono);fill:var(--ink)}
+.icard rect{fill:var(--panel);stroke-width:2.2}
+.icard.go{cursor:pointer} .icard.go:hover rect{fill:var(--soft)}
+.it{font:700 13px var(--sans);fill:var(--ink)} .is{font:400 11px var(--mono);fill:var(--muted)}
+.env rect{fill:var(--panel);stroke:var(--config);stroke-width:2;stroke-dasharray:4 3} .env.go{cursor:pointer}
+.cyl path{fill:var(--soft);stroke:var(--file);stroke-width:2} .cyl .cylt{fill:none} .cyl.go{cursor:pointer} .cyl.go:hover path{fill:var(--panel)}
+.bigcyl{fill:var(--soft);stroke:var(--file);stroke-width:3} .bigcylt{fill:none;stroke:var(--file);stroke-width:3}
+.envbig{fill:var(--panel);stroke:var(--config);stroke-width:3;stroke-dasharray:8 5} .keyt{fill:var(--soft);stroke:var(--line)}
+.badge rect{fill:var(--panel);stroke:var(--line);stroke-width:1.5} .badge.ok rect{stroke:var(--ok)} .badge.warn rect{stroke:var(--warn)} .badge.bad rect{stroke:var(--bad);fill:color-mix(in srgb,var(--bad) 10%,var(--panel))}
+.bi{font:14px var(--sans)} .bt{font:600 12px var(--mono);fill:var(--ink)}
+.legend2{max-width:1500px;margin:10px auto 0;display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink)}
+.legend2 span{display:inline-flex;align-items:center;gap:6px} .legend2 i{display:inline-block;width:22px;height:0}
+.muted{color:var(--muted)}
+.det{max-width:1500px;margin:14px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 16px}
+.det summary{cursor:pointer;font:700 14px var(--sans)}
+.det h4{font:700 12px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.two2{display:grid;grid-template-columns:1fr 1fr;gap:16px} .two2 ul{margin:0;padding-left:18px;font-size:13px}
+.tip{position:fixed;z-index:20;max-width:330px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;pointer-events:none}
+/* gate pipeline */
+.gwrap{background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:auto}
+.gsvg{display:block;width:100%;min-width:760px;height:auto}
+.gbg{fill:none;stroke:var(--soft);stroke-width:18;stroke-linecap:round} .gln{fill:none;stroke-width:4}
+.stE{fill:var(--panel);stroke-width:5} .stM{fill:var(--panel);stroke-width:3}
+.stT{font:700 12.5px var(--mono);fill:var(--ink)} .stS{font:400 11.5px var(--sans);fill:var(--muted)}
+.bub rect,.bub path{fill:var(--panel);stroke:var(--line);stroke-width:1.5} .bubT{font:400 12px var(--mono);fill:var(--ink)}
 @media (prefers-reduced-motion: reduce){.drawer{transition:none}}
 </style>
 </head>
@@ -211,6 +254,7 @@ pre.pl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);bo
   </div>
   <div class="rbody" id="rBody"></div>
 </div>
+<div id="tip" class="tip" role="tooltip"></div>
 <aside class="drawer" id="drawer" aria-live="polite">
   <div class="dhead"><div style="display:flex;gap:8px;align-items:center"><h3 id="dTitle" style="flex:1"></h3><button class="ghost" id="dClose">✕</button></div><div id="dChips" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div></div>
   <div class="dbody" id="dBody"></div>
@@ -379,72 +423,219 @@ function side(id){
 }
 sideDefault();
 
-/* ───────── ROOM ───────── */
-const room=$("#room"),drawer=$("#drawer");
+/* ───────── ROOM: drawn as a floor plan ───────── */
+const room=$("#room"),drawer=$("#drawer"),tip=$("#tip");
 let roomId=null;
 $("#rBack").onclick=closeRoom;
 function closeRoom(){room.classList.remove("on");drawer.classList.remove("on");roomId=null;}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(drawer.classList.contains("on"))drawer.classList.remove("on");else closeRoom();}});
-function gateCard(l,dir){
-  const other=dir==="in"?l.src:l.dst;
-  const via=l.via?(SVC[l.via]?`Service ${SVC[l.via].name}`:l.via):"";
-  return `<button class="gate k-${l.kind}" onclick="openGate('${l.id}')">
-    <div class="g1">${dir==="in"?"from":"to"} ${esc(nameOf(other))}</div>
-    <div class="g2">${esc(KINDS[l.kind]||l.kind)} · ${esc(l.proto)}${l.port?" :"+esc(l.port):""}${via?" · via "+esc(via):""}</div>
-    <div class="g3">${esc(l.label)}</div></button>`;
+const KCOL={user:"var(--user)",http:"var(--http)",db:"var(--db)",metric:"var(--metric)",file:"var(--file)",config:"var(--config)",probe:"var(--probe)",control:"var(--control)"};
+const DASH={user:"",http:"",db:"",metric:"8 5",file:"3 4",config:"2 4",probe:"2 5",control:"10 5"};
+const RMOTION=!matchMedia("(prefers-reduced-motion: reduce)").matches;
+function wrap(s,n){const out=[];String(s||"").split("\n").forEach(par=>{let cur="";par.split(" ").forEach(w=>{if((cur+" "+w).trim().length>n){if(cur)out.push(cur);cur=w.length>n?w.slice(0,n-1)+"…":w;}else cur=(cur+" "+w).trim();});out.push(cur);});return out;}
+function mtext(p,x,y,lines,cls,anc,lh){lines.forEach((ln,i)=>tx(p,x,y+i*(lh||14),ln,cls,anc));}
+function packet(p,pathEl,kind,dur,reverse){if(!RMOTION)return;const c=el("circle",{r:4.5,class:"pk",style:`fill:${KCOL[kind]}`},p);const am=el("animateMotion",{dur:(dur||2.4)+"s",repeatCount:"indefinite",rotate:"auto",keyPoints:reverse?"1;0":"0;1",keyTimes:"0;1",calcMode:"linear"},c);const mp=el("mpath",{},am);mp.setAttributeNS("http://www.w3.org/1999/xlink","href","#"+pathEl.id);mp.setAttribute("href","#"+pathEl.id);}
+let pid=0;
+function pipe(p,d,kind,lid,label,opts){
+  opts=opts||{};const g=el("g",{class:"pipe","data-lid":lid||""},p);
+  const id="pp"+(++pid);
+  el("path",{d,class:"pbg"},g);
+  const ln=el("path",{id,d,class:"pln",style:`stroke:${KCOL[kind]};stroke-dasharray:${DASH[kind]}`,"marker-end":opts.noArrow?"":`url(#ra-${kind})`},g);
+  packet(g,ln,kind,opts.dur,opts.reverse);
+  if(lid){g.style.cursor="pointer";g.addEventListener("click",e=>{e.stopPropagation();openGate(lid);});
+    g.addEventListener("mousemove",e=>showTip(e,label||""));g.addEventListener("mouseleave",hideTip);}
+  return g;
 }
+function showTip(e,html){tip.innerHTML=html;tip.style.display="block";tip.style.left=Math.min(e.clientX+14,innerWidth-340)+"px";tip.style.top=(e.clientY+14)+"px";}
+function hideTip(){tip.style.display="none";}
+function door(p,x,y,kind,label,vertical){const g=el("g",{class:"door2"},p);el("rect",{x:x-7,y:y-17,width:14,height:34,rx:3,style:`fill:${KCOL[kind]}`},g);el("rect",{x:x-3,y:y-11,width:6,height:22,rx:1,class:"dgap"},g);if(label)tx(g,x+(vertical==="left"?-12:12),y-21,label,"dlab",vertical==="left"?"end":"start");return g;}
+function iconCard(p,x,y,w,h,title,sub,kind,id){const g=el("g",{class:"icard"+(id&&ENT[id]?" go":""),"data-id":id||""},p);el("rect",{x,y,width:w,height:h,rx:10,style:`stroke:${KCOL[kind]||"var(--muted)"}`},g);tx(g,x+12,y+22,trunc(title,22),"it");if(sub)tx(g,x+12,y+39,trunc(sub,28),"is");if(id&&ENT[id]){g.addEventListener("click",e=>{e.stopPropagation();openRoom(id);});const t=el("title",{},g);t.textContent="Enter "+nameOf(id)+"'s room";}return g;}
+function badge(p,x,y,icon,text,sev){const w=Math.max(120,text.length*7.6+46);const g=el("g",{class:"badge "+(sev||"")},p);el("rect",{x,y,width:w,height:30,rx:15},g);tx(g,x+14,y+20,icon,"bi");tx(g,x+34,y+20,text,"bt");return w;}
+function cylinder(p,x,y,w,h,title,sub,ro,id){const g=el("g",{class:"cyl"+(id?" go":""),"data-id":id||""},p);const r=9;
+  el("path",{d:`M${x},${y+r}A${w/2},${r} 0 0 1 ${x+w},${y+r}L${x+w},${y+h-r}A${w/2},${r} 0 0 1 ${x},${y+h-r}Z`},g);el("path",{class:"cylt",d:`M${x},${y+r}A${w/2},${r} 0 0 0 ${x+w},${y+r}`},g);
+  tx(g,x+w/2,y+34,trunc(title,20),"it","middle");if(sub)tx(g,x+w/2,y+51,sub,"is","middle");if(ro!=null)tx(g,x+w-14,y+30,ro?"🔒":"✎","bi","middle");
+  if(id){g.addEventListener("click",e=>{e.stopPropagation();openRoom(id);});const t=el("title",{},g);t.textContent="Enter "+nameOf(id)+"'s room";}return g;}
+
+function roomDefs(svg){const d=el("defs",{},svg);Object.keys(KINDS).forEach(k=>{const mk=el("marker",{id:"ra-"+k,viewBox:"0 0 10 10",refX:"8",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},d);el("path",{d:"M0,0L10,5L0,10z",style:`fill:${KCOL[k]}`},mk);});}
+
 function openRoom(id){
   const e=ENT[id];if(!e)return;roomId=id;const o=e.obj;const {inc,out}=gatesOf(id);
   $("#rCrumb").textContent=`Map › ${e.group} › ${e.type==="component"?o.kind:e.type}`;
   $("#rTitle").textContent=e.name;
   $("#rActions").innerHTML=`<button class="ghost" onclick="closeRoom();focusNode('${esc(id)}');panTo('${esc(id)}');side('${esc(id)}')">Show on map</button>`;
-  const order=k=>["user","http","db","metric","file","config","probe","control"].indexOf(k);
-  inc.sort((a,b)=>order(a.kind)-order(b.kind));out.sort((a,b)=>order(a.kind)-order(b.kind));
-  let inside="",walls={top:"",bot:"",tr:""};
-  if(e.type==="component"){
-    walls.top=`namespace: ${DATA.meta.namespace}`;
-    walls.tr=o.services.length?o.services.map(s=>`${SVC[s]?.type||""} ${SVC[s]?.name}`).join(" · "):"no Service: unreachable by name";
-    const lim=o.containers.map(c=>{const r=c.resources||{};const q=r.requests||{},li=r.limits||{};return `cpu ${q.cpu||"–"}→${li.cpu||"∞"} · mem ${q.memory||"–"}→${li.memory||"∞"}`;}).join(" | ");
-    walls.bot=`cgroup: ${lim}`;
-    inside+=`<h4>What lives here</h4><p style="margin:0 0 6px">${esc(o.what)}</p>`;
-    inside+=`<h4>Pods (${o.pods.length||"not live"})</h4><div class="tiles">${(o.pods.length?o.pods:[...Array(o.replicas||1)].map(()=>null)).map(p=>p?`<div class="tile"><b>${esc(p.name)}</b><span class="mono">IP ${esc(p.ip||"–")} · ${esc(p.phase)}${p.ready?" · Ready":""}${p.restarts?" · "+p.restarts+" restarts":""}</span></div>`:`<div class="tile"><b>pod</b><span class="mono">created when applied</span></div>`).join("")}</div>`;
-    o.containers.forEach(c=>{
-      inside+=`<h4>Container: ${esc(c.name)}</h4><dl class="kv"><dt>image</dt><dd>${esc(c.image)} (${esc(c.pullPolicy||"default pull")})</dd>
-      ${c.command.length||c.args.length?`<dt>runs</dt><dd>${esc([...c.command,...c.args].join(" ").slice(0,220))}</dd>`:""}
-      <dt>listens on</dt><dd>${c.ports.map(p=>esc(p.port+"/"+p.protocol+(p.name?" ("+p.name+")":""))).join(", ")||"no declared ports"}</dd>
-      <dt>config in</dt><dd>${[...c.envFrom,...c.env.filter(v=>v.from).map(v=>v.name+" ← "+v.from)].map(esc).join("<br>")||"none"}</dd>
-      ${c.env.filter(v=>!v.from).length?`<dt>env</dt><dd>${c.env.filter(v=>!v.from).map(v=>esc(v.name+"="+v.value)).join("<br>")}</dd>`:""}
-      <dt>probes</dt><dd>${Object.entries(c.probes).map(([k,p])=>esc(`${k}: ${p.how} /${p.period}s (timeout ${p.timeout}s, ×${p.failureThreshold})`)).join("<br>")||"none: kubelet only checks the process is running"}</dd></dl>`;
-    });
-    inside+=`<h4>Cupboards (mounted volumes)</h4><div class="tiles">${o.mounts.map(mt=>`<div class="tile"><b>${esc(mt.path)}</b><span class="mono">${esc(mt.pvc?"PVC "+mt.pvc:mt.configMap?"ConfigMap "+mt.configMap:mt.secret?"Secret "+mt.secret:mt.emptyDir?"emptyDir":"volume")} · ${mt.readOnly?"read-only":"read-write"}</span></div>`).join("")||`<div class="empty">nothing mounted: everything it writes dies with the pod</div>`}</div>`;
-    inside+=`<h4>Deployment behaviour</h4><dl class="kv"><dt>kind</dt><dd>${esc(o.kind)}${o.replicas!=null?" · replicas "+o.replicas:""}</dd>${o.strategy?`<dt>strategy</dt><dd>${esc(o.strategy)}${o.rolling?" "+esc(JSON.stringify(o.rolling)):""}</dd>`:""}<dt>restartPolicy</dt><dd>${esc(o.restartPolicy)}</dd><dt>pod labels</dt><dd>${esc(Object.entries(o.podLabels).map(([k,v])=>k+"="+v).join(", "))}</dd><dt>defined in</dt><dd>${esc(o.defined.file)}${o.defined.line?":"+o.defined.line:""}</dd></dl>`;
-    o.notes.forEach(n=>inside+=`<p class="mono" style="color:var(--warn)">${esc(n)}</p>`);
-  } else if(e.type==="pvc"){
-    walls.top=`namespace: ${DATA.meta.namespace}`;walls.tr=`StorageClass ${o.storageClass}`;walls.bot=`${o.size} · ${(o.access||[]).join(", ")} · ${o.phase}`;
-    inside+=`<h4>What's inside</h4><p>${esc(o.contents||"-")}</p><h4>Mounted by</h4><div class="tiles">${o.users.map(u=>`<div class="tile"><b>${esc(nameOf(u.component))}</b><span class="mono">${esc(u.path)} · ${u.readOnly?"read-only":"read-write"}</span></div>`).join("")||`<div class="empty">nobody</div>`}</div>
-    <h4>How it really works</h4><p>A PersistentVolumeClaim asks for storage; minikube's storage-provisioner binds it to a hostPath folder on the node${o.volume?" (volume "+esc(o.volume)+")":""}. The kubelet bind-mounts that folder into every pod that lists the claim. <b>ReadWriteOnce</b> means one <i>node</i> at a time, not one pod: on single-node minikube many pods share it.</p>`;
-  } else if(e.type==="config"){
-    walls.top=`namespace: ${DATA.meta.namespace}`;walls.tr=o.kind;walls.bot=o.kind==="Secret"?"values: base64 in etcd (not encrypted) · NOT included in this snapshot":"plain text in etcd";
-    inside+=`<h4>Keys</h4><div class="tiles">${o.keys.map(k=>`<div class="tile"><b>${esc(k)}</b></div>`).join("")||"<div class='empty'>no keys</div>"}</div><h4>Defined in</h4><p class="mono">${esc(o.defined.file)}</p>`;
-  } else if(e.type==="cp"){
-    walls.top="kube-system / the node";walls.tr="cluster-wide";walls.bot="not in your namespace";
-    inside+=`<h4>Job</h4><p>${esc(o.what)}</p><h4>Running as</h4><div class="tiles">${o.pods.map(p=>`<div class="tile"><b>${esc(p.pod)}</b><span class="mono">${esc(p.ip)} · ${esc(p.image)}</span></div>`).join("")||`<div class="empty">a process on the node (not a pod you can list), or not captured</div>`}</div>`;
-  } else {
-    walls.top="outside the cluster";walls.tr="";walls.bot="";
-    inside+=`<p>${esc(o.what)}</p>`;
-  }
-  const iso=isolation(id);
-  const qs=DATA.questions.filter(q=>q.show&&q.show.room===id);
-  $("#rBody").innerHTML=`<div class="rgrid">
-     <div class="gates in"><h3>⇢ Incoming gates (${inc.length})</h3>${inc.map(l=>gateCard(l,"in")).join("")||`<div class="empty">Nothing calls it.</div>`}</div>
-     <div class="walls">${walls.top?`<span class="wtag top">${esc(walls.top)}</span>`:""}${walls.tr?`<span class="wtag tr">${esc(walls.tr)}</span>`:""}${walls.bot?`<span class="wtag bot">${esc(walls.bot)}</span>`:""}${inside}</div>
-     <div class="gates out"><h3>Outgoing gates (${out.length}) ⇢</h3>${out.map(l=>gateCard(l,"out")).join("")||`<div class="empty">It never calls out.</div>`}</div>
-   </div>
-   ${iso.length?`<div class="iso">${iso.map(i=>`<div class="lcard"><h3><span class="sev ${i.s}"></span>${esc(i.t)}</h3><p>${i.d}</p></div>`).join("")}</div>`:""}
-   ${qs.length?`<div class="rq"><div class="sec-title">Interview questions about this room</div>${qs.map(q=>`<div class="lcard" style="margin-top:8px"><b>${esc(q.q)}</b><p style="margin:6px 0 0">${esc(q.a)}</p></div>`).join("")}</div>`:""}`;
+  const body=$("#rBody");body.innerHTML=`<div class="plan"><svg id="plan" role="img" aria-label="Floor plan of ${esc(e.name)}"></svg></div><div class="legend2">${Object.entries(KINDS).map(([k,v])=>`<span><i style="border-top:3px ${DASH[k]?"dashed":"solid"} ${KCOL[k]}"></i>${v}</span>`).join("")}<span class="muted">· hover a pipe for one line · click a pipe to follow it · click any box outside the walls to walk into that room</span></div><details class="det"><summary>Details (text)</summary><div id="rText"></div></details>`;
+  const svg=$("#plan");roomDefs(svg);
+  if(e.type==="component")drawComponentRoom(svg,id,o,inc,out);
+  else drawHubRoom(svg,id,e,o,inc,out);
+  $("#rText").innerHTML=roomText(id);
   drawer.classList.remove("on");room.classList.add("on");$("#rBack").focus();
 }
 window.openRoom=openRoom;window.closeRoom=closeRoom;window.focusNode=focusNode;window.panTo=panTo;window.side=side;
+
+function drawComponentRoom(svg,id,o,inc,out){
+  const W=1440,H=940;svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const NS_={x:300,y:80,w:840,h:770};
+  const SV={x:390,y:205,w:660,h:410};
+  const svcs=o.services.map(s=>SVC[s]).filter(Boolean);
+  // ── outer wall: namespace
+  const gw=el("g",{},svg);
+  el("rect",{x:NS_.x,y:NS_.y,width:NS_.w,height:NS_.h,rx:24,class:"wall-ns"},gw);
+  tx(gw,NS_.x+20,NS_.y+28,`namespace: ${DATA.meta.namespace}`,"wl");
+  tx(gw,NS_.x+NS_.w-20,NS_.y+28,"node: "+(DATA.meta.node?.name||"minikube"),"wl","end");
+  // ── service ring (or "no Service")
+  el("rect",{x:SV.x,y:SV.y,width:SV.w,height:SV.h,rx:18,class:svcs.length?"wall-svc":"wall-nosvc"},gw);
+  tx(gw,SV.x+20,SV.y+26,svcs.length?svcs.map(s=>`Service ${s.name} · ${s.type} ${s.clusterIP} · :${s.ports.map(p=>p.port).join(",")}`).join("  |  "):"no Service: nothing can reach these pods by name",svcs.length?"wls":"wl","start");
+  // ── pods
+  const n=Math.max(1,o.kind==="Job"?(o.pods.length||1):(o.replicas||1)),shown=Math.min(n,4);
+  const gap=22,pw=(SV.w-40-(shown-1)*gap)/shown,ph=290,py=SV.y+92;
+  const pods=[];
+  for(let i=0;i<shown;i++){
+    const px=SV.x+20+i*(pw+gap),p=o.pods[i];
+    const g=el("g",{class:"podbox"},svg);
+    el("rect",{x:px,y:py,width:pw,height:ph,rx:14,class:"wall-pod"},g);
+    const ok=p?(p.ready||p.phase==="Succeeded"):null;
+    el("circle",{cx:px+16,cy:py+40,r:5.5,class:ok==null?"dot-off":ok?"dot-ok":p.phase==="Running"?"dot-warn":"dot-bad"},g);
+    tx(g,px+28,py+44,p?trunc(p.name.replace(o.name+"-",""),pw/7.6):"pod (not running)","pt");
+    tx(g,px+16,py+62,p?`IP ${p.ip||"-"} · ${p.phase}${p.restarts?" · ↻"+p.restarts:""}`:"created when applied","ps");
+    // container
+    const c=o.containers[0]||{name:"?",image:"",ports:[],command:[],args:[]};
+    const cx=px+14,cy=py+78,cw=pw-28,ch=ph-92;
+    el("rect",{x:cx,y:cy,width:cw,height:ch,rx:10,class:"cbox"},g);
+    tx(g,cx+12,cy+20,"container · "+trunc(c.name,18),"ck");
+    mtext(g,cx+12,cy+40,wrap(c.image,Math.floor(cw/7)).slice(0,2),"ci");
+    const proc=[...(c.command||[]),...(c.args||[])].join(" ")||"image's default command";
+    tx(g,cx+12,cy+80,"runs:","ck");mtext(g,cx+12,cy+96,wrap(proc,Math.floor(cw/6.6)).slice(0,3),"cp");
+    // listening sockets sit ON the pod's top wall: every network pipe plugs in here
+    const socks={};
+    (c.ports.length?c.ports:[]).slice(0,3).forEach((pt,k)=>{const sx=px+30+k*Math.min(90,(pw-40)/3);socks[pt.port]=sx;el("circle",{cx:sx,cy:py,r:9,class:"sock"},g);tx(g,sx+13,py+17,`:${pt.port}/${pt.protocol}`,"sp");});
+    if(o.containers.length>1)tx(g,cx+12,cy+ch-12,`+${o.containers.length-1} more container(s)`,"ps");
+    pods.push({x:px,y:py,w:pw,h:ph,socks,sock:p=>socks[p]??Object.values(socks)[0]??px+30});
+  }
+  if(n>shown)tx(svg,SV.x+SV.w-20,SV.y+SV.h-14,`+${n-shown} more pods`,"wl","end");
+  // ── ceiling slot: ConfigMaps / Secrets
+  const cfg=inc.filter(l=>l.kind==="config");
+  cfg.forEach((l,i)=>{const x=SV.x+40+i*200,y=NS_.y+48;const g=el("g",{class:"env go"},svg);el("rect",{x,y,width:180,height:42,rx:8},g);
+    tx(g,x+12,y+18,(ENT[l.src]?.obj.kind==="Secret"?"🔑 Secret":"✉ ConfigMap"),"is");tx(g,x+12,y+34,trunc(nameOf(l.src),22),"it");
+    pipe(svg,`M${x+90},${y+42} L${x+90},${SV.y-2}`,"config",l.id,`<b>${esc(nameOf(l.src))}</b> → injected as ${esc(l.proto)}`,{noArrow:false,dur:1.6});
+    g.addEventListener("click",ev=>{ev.stopPropagation();openRoom(l.src);});});
+  if(!cfg.length) tx(svg,SV.x+20,NS_.y+75,"no ConfigMaps or Secrets injected","wl");
+  // ── incoming (left)
+  const netIn=inc.filter(l=>!["config","probe"].includes(l.kind));
+  const step=Math.min(130,(NS_.h-120)/Math.max(1,netIn.length));
+  netIn.forEach((l,i)=>{
+    const y=NS_.y+70+i*step+step/2-30;
+    iconCard(svg,20,y,230,58,nameOf(l.src),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.src);
+    const tipHtml=`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}${l.via&&SVC[l.via]?" · via Service "+esc(SVC[l.via].name):""}<br><span class="muted">${esc(trunc(l.payload,140))}</span>`;
+    const dy=y+29;
+    if(l.via&&svcs.length){
+      // through the namespace wall, into the Service's front door, then kube-proxy picks ONE pod
+      door(svg,NS_.x,dy,l.kind,l.port?":"+l.port:"","left");
+      const sy=Math.min(SV.y+SV.h-30,Math.max(SV.y+50,dy));
+      pipe(svg,`M250,${dy} C${NS_.x-10},${dy} ${NS_.x+20},${sy} ${SV.x-10},${sy}`,l.kind,l.id,tipHtml);
+      door(svg,SV.x,sy,l.kind,"","left");
+      pods.forEach((pd,k)=>{const sx=pd.sock(l.port);const pth=`M${SV.x+8},${sy} C${SV.x+60},${sy} ${sx},${pd.y-70} ${sx},${pd.y-11}`;const g=pipe(svg,pth,l.kind,l.id,tipHtml+"<br><i>kube-proxy sends each connection to ONE of these pods</i>",{dur:2.4+k*.5});g.classList.add("fan");});
+      if(i===netIn.findIndex(x=>x.via))tx(svg,SV.x+20,SV.y+50,"kube-proxy (iptables) sends each connection to ONE Ready pod","wl");
+    } else {
+      // straight to the pod IPs: bypasses any Service
+      door(svg,NS_.x,dy,l.kind,l.port?":"+l.port:"","left");
+      pods.forEach((pd,k)=>{const sx=pd.sock(l.port);
+        const pth=`M250,${dy} C${NS_.x+60},${dy} ${sx-30},${SV.y-40} ${sx},${pd.y-11}`;pipe(svg,pth,l.kind,l.id,tipHtml+"<br><i>goes straight to the pod IP: no Service involved</i>",{dur:2.2+k*.5});});
+    }
+  });
+  if(!netIn.length) tx(svg,30,NS_.y+90,"Nothing calls in.","wl");
+  // ── kubelet (health inspector)
+  const pr=inc.filter(l=>l.kind==="probe");
+  if(pr.length){const kx=20,ky=NS_.y+NS_.h-100;iconCard(svg,kx,ky,230,74,"🩺 kubelet",pr.map(l=>l.label.split(":")[0]).join(" · "),"probe","cp:kubelet");
+    tx(svg,kx+12,ky+60,"→ pod IPs, never the Service","is");
+    pods.forEach((pd,k)=>pr.forEach((l,j)=>{const bx_=pd.x+pd.w-24-j*16;pipe(svg,`M250,${ky+37} C${NS_.x+80},${ky+37} ${bx_},${pd.y+pd.h+70} ${bx_},${pd.y+pd.h+8}`,"probe",l.id,`<b>${esc(l.label)}</b><br>${esc(l.payload)}`,{dur:1.8+j*.4});}));}
+  // ── outgoing (right), except volumes
+  const netOut=out.filter(l=>l.kind!=="file");
+  const ostep=Math.min(130,(NS_.h-120)/Math.max(1,netOut.length));
+  const ox=pods.length?pods[pods.length-1].x+pods[pods.length-1].w:SV.x+SV.w;
+  netOut.forEach((l,i)=>{const y=NS_.y+70+i*ostep+ostep/2-30,dy=y+29;
+    iconCard(svg,W-250,y,230,58,nameOf(l.dst),`${l.proto}${l.port?" :"+l.port:""}`,l.kind,l.dst);
+    const sy=pods.length?pods[pods.length-1].y+70+((i*41)%(ph-110)):SV.y+60;
+    door(svg,NS_.x+NS_.w,dy,l.kind,l.port?":"+l.port:"","right");
+    pipe(svg,`M${ox+6},${sy} C${NS_.x+NS_.w-60},${sy} ${NS_.x+NS_.w-20},${dy} ${W-252},${dy}`,l.kind,l.id,
+      `<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""}<br><span class="muted">${esc(trunc(l.payload,140))}</span>`,{dur:2.6});});
+  if(!netOut.length) tx(svg,W-250,NS_.y+90,"Never calls out.","wl");
+  // ── volumes (floor)
+  const vols=out.filter(l=>l.kind==="file");
+  const vw=170,vg=26,vx0=SV.x+(SV.w-(vols.length*vw+(vols.length-1)*vg))/2;
+  vols.forEach((l,i)=>{const x=vx0+i*(vw+vg),y=SV.y+SV.h+62;const pv=ENT[l.dst]?.obj;
+    cylinder(svg,x,y,vw,78,nameOf(l.dst),l.path,l.mode==="ro",l.dst);
+    const srcx=pods.length?pods[Math.min(i,pods.length-1)].x+pods[0].w/2:x+vw/2;
+    pipe(svg,`M${srcx},${py+ph} C${srcx},${py+ph+40} ${x+vw/2},${y-40} ${x+vw/2},${y-2}`,"file",l.id,`<b>${esc(l.path)}</b> ${l.mode==="ro"?"read-only 🔒":"read-write"}<br>${esc(trunc(l.payload,160))}`,{dur:2,reverse:l.mode==="ro"});});
+  if(!vols.length) tx(svg,SV.x+20,SV.y+SV.h+90,"no volumes: everything written here dies with the pod","wl");
+  // ── wall badges (isolation)
+  const c0=o.containers[0]||{};const r=c0.resources||{};
+  let bx=NS_.x+10,by=NS_.y+NS_.h+18;
+  const memL=(r.limits||{}).memory,memR=(r.requests||{}).memory;
+  bx+=badge(svg,bx,by,"▥",`mem ${memR||"–"} → ${memL||"no limit"}`,memL?"ok":"warn")+10;
+  bx+=badge(svg,bx,by,"⚙",`cpu ${(r.requests||{}).cpu||"–"} → ${(r.limits||{}).cpu||"no limit"}`,(r.limits||{}).cpu?"ok":"warn")+10;
+  const imgs=o.containers.map(c=>c.image).join(" ");
+  bx+=badge(svg,bx,by,"👤",/airflow/.test(imgs)?"uid 50000 (airflow)":/postgres|grafana|prometheus/.test(imgs)?"non-root (image)":"root (no USER set)",/airflow|postgres|grafana|prometheus/.test(imgs)?"ok":"warn")+10;
+  bx+=badge(svg,bx,by,DATA.networkPolicies.length?"🔒":"🔓",DATA.networkPolicies.length?"NetworkPolicy present":"no NetworkPolicy",DATA.networkPolicies.length?"ok":"bad")+10;
+  const roles=DATA.roleBindings.filter(b=>b.subjects.includes(o.serviceAccount));
+  badge(svg,bx,by,"🪪",`SA ${o.serviceAccount}${roles.length?" + Role":""}`,roles.length?"warn":"ok");
+  // ── title tags
+  tx(svg,SV.x+SV.w-20,SV.y+28,`${o.kind}${o.replicas!=null?" ×"+o.replicas:""}${o.strategy?" · "+o.strategy:""}`,"wt","end");
+}
+
+/* PVC / ConfigMap / Secret / control plane / external: one object in the middle, gates on both sides */
+function drawHubRoom(svg,id,e,o,inc,out){
+  const W=1440,H=760;svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const C={x:500,y:170,w:440,h:380};
+  const g=el("g",{},svg);
+  if(e.type==="pvc"){
+    el("rect",{x:C.x-60,y:C.y-90,width:C.w+120,height:C.h+170,rx:24,class:"wall-ns"},g);tx(g,C.x-40,C.y-62,`namespace: ${DATA.meta.namespace} · StorageClass ${o.storageClass}`,"wl");
+    const r=22;el("path",{class:"bigcyl",d:`M${C.x},${C.y+r}A${C.w/2},${r} 0 0 1 ${C.x+C.w},${C.y+r}L${C.x+C.w},${C.y+C.h-r}A${C.w/2},${r} 0 0 1 ${C.x},${C.y+C.h-r}Z`},g);
+    el("path",{class:"bigcylt",d:`M${C.x},${C.y+r}A${C.w/2},${r} 0 0 0 ${C.x+C.w},${C.y+r}`},g);
+    tx(g,C.x+C.w/2,C.y+64,o.name,"wt","middle");tx(g,C.x+C.w/2,C.y+86,`${o.size} · ${(o.access||[]).join(", ")} · ${o.phase}`,"ps","middle");
+    mtext(g,C.x+30,C.y+124,(o.contents||"").split(" · ").slice(0,8).map(s=>"📁 "+trunc(s,48)),"cp","start",22);
+    tx(g,C.x+C.w/2,C.y+C.h+40,"a hostPath folder on the node, bind-mounted into each pod below","wl","middle");
+    tx(g,C.x+C.w/2,C.y+C.h+60,"RWO = one NODE at a time (not one pod)","wl","middle");
+  } else if(e.type==="config"){
+    el("rect",{x:C.x,y:C.y,width:C.w,height:C.h,rx:16,class:"envbig"},g);
+    tx(g,C.x+24,C.y+40,(o.kind==="Secret"?"🔑 Secret ":"✉ ConfigMap ")+o.name,"wt");
+    tx(g,C.x+24,C.y+64,o.kind==="Secret"?"values NOT in this snapshot · base64 in etcd, protected by RBAC":"plain text in etcd","ps");
+    o.keys.slice(0,12).forEach((k,i)=>{const kx=C.x+24+(i%2)*205,ky=C.y+90+Math.floor(i/2)*42;el("rect",{x:kx,y:ky,width:195,height:32,rx:8,class:"keyt"},g);tx(g,kx+10,ky+21,trunc(k,26),"cp");});
+  } else {
+    el("rect",{x:C.x,y:C.y,width:C.w,height:C.h,rx:22,class:e.type==="cp"?"wall-svc":"wall-pod"},g);
+    tx(g,C.x+C.w/2,C.y+44,(e.type==="cp"?"⚙ ":"🌐 ")+e.name,"wt","middle");
+    mtext(g,C.x+30,C.y+84,wrap(o.what,52),"cp","start",20);
+    (o.pods||[]).slice(0,2).forEach((p,i)=>tx(g,C.x+30,C.y+C.h-50+i*20,`${p.pod} · ${p.ip}`,"ps"));
+  }
+  const hubIn=inc.filter(l=>l.kind!=="probe"||e.type!=="cp"),hubOut=out;
+  const lay=(list,side)=>{const step=Math.min(120,(H-120)/Math.max(1,list.length));list.slice(0,14).forEach((l,i)=>{
+    const other=side==="in"?l.src:l.dst,y=60+i*step+step/2-29,dy=y+29;
+    const cx_=side==="in"?20:W-270;iconCard(svg,cx_,y,250,58,nameOf(other),side==="in"?l.label:`${l.label}`,l.kind,other);
+    const ty=C.y+40+((i*37)%(C.h-80));
+    const d=side==="in"?`M270,${dy} C${C.x-140},${dy} ${C.x-80},${ty} ${C.x-8},${ty}`:`M${C.x+C.w+8},${ty} C${C.x+C.w+80},${ty} ${W-410},${dy} ${W-272},${dy}`;
+    pipe(svg,d,l.kind,l.id,`<b>${esc(nameOf(l.src))} → ${esc(nameOf(l.dst))}</b><br>${esc(l.label)}<br><span class="muted">${esc(trunc(l.payload,140))}</span>`,{dur:2.2,reverse:l.kind==="file"&&l.mode==="ro"&&side==="in"});});
+    if(list.length>14)tx(svg,side==="in"?20:W-270,H-20,`+${list.length-14} more (see Details)`,"wl");};
+  lay(hubIn,"in");lay(hubOut,"out");
+  if(!hubIn.length)tx(svg,30,90,"Nothing calls in.","wl");if(!hubOut.length)tx(svg,W-260,90,"Never calls out.","wl");
+}
+
+/* the previous text view, now behind "Details" */
+function roomText(id){
+  const e=ENT[id],o=e.obj,{inc,out}=gatesOf(id);let h="";
+  const li=(l,other)=>`<li><a href="#" onclick="openGate('${l.id}');return false"><b>${esc(nameOf(other))}</b></a> · ${esc(KINDS[l.kind])} · ${esc(l.proto)}${l.port?" :"+l.port:""} · ${esc(l.label)}</li>`;
+  h+=`<div class="two2"><div><h4>Incoming gates (${inc.length})</h4><ul>${inc.map(l=>li(l,l.src)).join("")||"<li>none</li>"}</ul></div><div><h4>Outgoing gates (${out.length})</h4><ul>${out.map(l=>li(l,l.dst)).join("")||"<li>none</li>"}</ul></div></div>`;
+  if(e.type==="component"){
+    h+=`<p>${esc(o.what)}</p><dl class="kv"><dt>defined in</dt><dd>${esc(o.defined.file)}${o.defined.line?":"+o.defined.line:""}</dd>`;
+    o.containers.forEach(c=>{h+=`<dt>container</dt><dd>${esc(c.name)} · ${esc(c.image)}</dd><dt>env</dt><dd>${[...c.envFrom,...c.env.map(v=>v.name+(v.from?" ← "+v.from:"="+v.value))].map(esc).join("<br>")||"-"}</dd><dt>probes</dt><dd>${Object.entries(c.probes).map(([k,p])=>esc(`${k}: ${p.how} every ${p.period}s, timeout ${p.timeout}s, ×${p.failureThreshold}`)).join("<br>")||"none"}</dd><dt>resources</dt><dd>${esc(JSON.stringify(c.resources||{}))}</dd>`;});
+    h+=`<dt>pods</dt><dd>${o.pods.map(p=>esc(`${p.name} ${p.ip} ${p.phase}${p.restarts?" restarts "+p.restarts:""}`)).join("<br>")||"(not live)"}</dd></dl>`;
+    o.notes.forEach(n=>h+=`<p class="muted">${esc(n)}</p>`);
+    h+=`<div class="iso">${isolation(id).map(i=>`<div class="lcard"><h3><span class="sev ${i.s}"></span>${esc(i.t)}</h3><p>${i.d}</p></div>`).join("")}</div>`;
+  } else if(e.type==="pvc"){h+=`<p>${esc(o.contents)}</p><p class="muted">defined in ${esc(o.defined.file)}</p>`;}
+  else if(e.type==="config"){h+=`<p>Keys: ${o.keys.map(esc).join(", ")}</p><p class="muted">defined in ${esc(o.defined.file)}</p>`;}
+  else h+=`<p>${esc(o.what)}</p>`;
+  const qs=DATA.questions.filter(q=>q.show&&q.show.room===id);
+  if(qs.length)h+=`<h4>Interview questions about this room</h4>`+qs.map(q=>`<p><b>${esc(q.q)}</b><br>${esc(q.a)}</p>`).join("");
+  return h;
+}
 
 /* isolation analysis: the "walls" */
 function reachableFromInternet(){const seen=new Set(["ext:internet"]);let ch=true;while(ch){ch=false;DATA.links.forEach(l=>{if(l.kind==="user"&&seen.has(l.src)&&!seen.has(l.dst)){seen.add(l.dst);ch=true;}});}return seen;}
@@ -470,31 +661,49 @@ function isolation(id){
   return out;
 }
 
-/* ───────── GATE drawer ───────── */
+/* ───────── GATE: the connection as a pipeline ───────── */
 $("#dClose").onclick=()=>drawer.classList.remove("on");
 function openGate(lid){
-  const l=LINK[lid];if(!l)return;
+  const l=LINK[lid];if(!l)return;hideTip();
   $("#dTitle").textContent=`${nameOf(l.src)} → ${nameOf(l.dst)}`;
   const via=l.via&&SVC[l.via]?SVC[l.via]:null;
-  $("#dChips").innerHTML=[KINDS[l.kind],l.proto,l.port?"port "+l.port:"",via?`via Service ${via.name} (${via.type})`:"",l.mode?(l.mode==="ro"?"read-only":"read-write"):""].filter(Boolean).map(c=>`<span class="chip">${esc(c)}</span>`).join("");
+  $("#dChips").innerHTML=[KINDS[l.kind],l.proto,l.port?"port "+l.port:"",via?`via Service ${via.name} (${via.type})`:"no Service in the path",l.mode?(l.mode==="ro"?"read-only":"read-write"):""].filter(Boolean).map(c=>`<span class="chip">${esc(c)}</span>`).join("");
+  // stations along the pipe
+  const st=[{at:nameOf(l.src),text:"caller",end:true}];
+  (l.hops||[]).forEach(h=>{if(h.at!==st[st.length-1].at)st.push({at:h.at,text:h.text});else st[st.length-1].text=h.text;});
+  if(st[st.length-1].at!==nameOf(l.dst))st.push({at:nameOf(l.dst),text:"answers / receives",end:true});else st[st.length-1].end=true;
+  const n=st.length,W=1060,H=430,x0=70,x1=W-70,gap=(x1-x0)/Math.max(1,n-1),py=250;
+  let s=`<svg viewBox="0 0 ${W} ${H}" class="gsvg" role="img" aria-label="Route of this connection"><defs><marker id="ga" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:${KCOL[l.kind]}"/></marker></defs>`;
+  s+=`<path id="gpipe" d="M${x0},${py} L${x1},${py}" class="gbg"/><path d="M${x0},${py} L${x1},${py}" style="stroke:${KCOL[l.kind]};stroke-dasharray:${DASH[l.kind]}" class="gln" marker-end="url(#ga)"/>`;
+  st.forEach((p,i)=>{const x=x0+i*gap;const big=p.end;
+    s+=`<g class="stn"><circle cx="${x}" cy="${py}" r="${big?20:13}" class="${big?"stE":"stM"}" style="stroke:${KCOL[l.kind]}"/>`;
+    s+=`<text x="${x}" y="${py+(big?44:38)}" text-anchor="middle" class="stT">${esc(trunc(p.at,24))}</text>`;
+    wrap(p.text,Math.max(14,Math.floor(gap/7.4))).slice(0,5).forEach((ln,k)=>s+=`<text x="${x}" y="${py+(big?62:56)+k*15}" text-anchor="middle" class="stS">${esc(ln)}</text>`);
+    s+=`</g>`;});
+  if(RMOTION)s+=`<circle r="9" style="fill:${KCOL[l.kind]}" class="gpk"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#gpipe"/></animateMotion></circle>`;
+  // payload bubble above the pipe
+  const lines=wrap(l.payload,118).slice(0,8);const bh=lines.length*16+22;
+  s+=`<g class="bub"><rect x="${x0-10}" y="${Math.max(8,py-60-bh)}" width="${x1-x0+20}" height="${bh}" rx="12"/><path d="M${W/2-12},${Math.max(8,py-60-bh)+bh} l12,16 l12,-16z"/>`;
+  lines.forEach((ln,k)=>s+=`<text x="${x0+6}" y="${Math.max(8,py-60-bh)+20+k*16}" class="bubT">${esc(ln)}</text>`);
+  s+=`<text x="${x1}" y="${Math.max(8,py-60-bh)-6}" text-anchor="end" class="stS">what travels through this gate</text></g></svg>`;
   const isoNotes=[];
   if(via){isoNotes.push(`Service <b>${esc(via.type)}</b> ${esc(via.name)} → ${via.type==="ClusterIP"?"only callable from inside the cluster":"exposed outside the cluster"}. DNS <code>${esc(via.dns)}</code>, ClusterIP <code>${esc(via.clusterIP)}</code>.`);
-    if(via.ready.length) isoNotes.push(`Ready endpoints right now: ${via.ready.map(r=>`<code>${esc(r.pod)} ${esc(r.ip)}</code>`).join(", ")}${via.notReady.length?`; NOT ready (no traffic): ${via.notReady.map(r=>`<code>${esc(r.pod)}</code>`).join(", ")}`:""}.`);}
+    if(via.ready.length) isoNotes.push(`Ready endpoints now: ${via.ready.map(r=>`<code>${esc(r.pod)} ${esc(r.ip)}</code>`).join(", ")}${via.notReady.length?`; NOT ready: ${via.notReady.map(r=>`<code>${esc(r.pod)}</code>`).join(", ")}`:""}.`);}
   if(["user","http","db","metric"].includes(l.kind)) isoNotes.push(DATA.networkPolicies.length?"NetworkPolicies exist in this namespace; check they allow this.":"No NetworkPolicy guards this gate: <b>any</b> pod in the cluster could open the same connection.");
-  if(l.kind==="file") isoNotes.push(`Access is decided by the mount: ${l.mode==="ro"?"<b>readOnly: true</b>, so writes fail with EROFS":"read-write"}. Files are shared by every pod mounting this PVC; there are no per-pod permissions beyond Unix file modes.`);
-  if(l.kind==="config") isoNotes.push("The kubelet fetches it from the API server, only for pods scheduled on its own node.");
-  if(l.kind==="probe") isoNotes.push("Probes come from the node (kubelet) to the pod IP. They bypass the Service and any tunnel.");
-  if(l.src==="ext:edge"||l.src==="ext:internet") isoNotes.push("The only path from the internet into the cluster. Nothing listens on your laptop's network; the tunnel agent dialled out.");
-  const routes=l.routes?`<h4>Routes through this gate</h4><pre class="pl">${l.routes.map(r=>`${(r.method||"?").padEnd(6)} ${r.path.padEnd(10)} → handler ${r.handler}`).join("\n")}</pre>`:"";
-  $("#dBody").innerHTML=`<h4>What travels through it</h4><pre class="pl">${esc(l.payload)}</pre>${routes}
-    <h4>Route, hop by hop</h4><ol class="hops">${(l.hops||[]).map(h=>`<li><b>${esc(h.at)}</b><br>${esc(h.text)}</li>`).join("")||"<li>direct</li>"}</ol>
+  if(l.kind==="file") isoNotes.push(`${l.mode==="ro"?"<b>readOnly: true</b>: writes fail (EROFS)":"read-write"}. Every pod mounting this PVC shares the same files.`);
+  if(l.kind==="config") isoNotes.push("The kubelet fetches it from the API server, only for pods on its own node.");
+  if(l.kind==="probe") isoNotes.push("From the node (kubelet) straight to the pod IP: bypasses the Service and any tunnel.");
+  if(l.src==="ext:edge"||l.src==="ext:internet") isoNotes.push("The only path from the internet into the cluster. Nothing listens on your laptop; the tunnel agent dialled out.");
+  const routes=l.routes?`<h4>Routes through this gate</h4><pre class="pl">${l.routes.map(r=>`${(r.method||"?").padEnd(6)} ${r.path.padEnd(10)} → ${r.handler}`).join("\n")}</pre>`:"";
+  $("#dBody").innerHTML=`<div class="gwrap">${s}</div>
+    <div style="display:flex;gap:8px;margin:6px 0 4px;flex-wrap:wrap">
+      <button class="big" onclick="gateOnMap('${l.id}')">Play on the map</button>
+      ${ENT[l.src]&&l.src!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.src)}')">Walk into ${esc(nameOf(l.src))}</button>`:""}
+      ${ENT[l.dst]&&l.dst!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.dst)}')">Walk into ${esc(nameOf(l.dst))}</button>`:""}</div>
+    <details class="det"><summary>Details (text)</summary>
+    <h4>Full payload</h4><pre class="pl">${esc(l.payload)}</pre>${routes}
     <h4>Defined by (evidence)</h4><ul class="ev">${l.evidence.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-    <h4>Isolation at this gate</h4><ul class="ev" style="font-family:var(--sans);font-size:13px">${isoNotes.map(x=>`<li>${x}</li>`).join("")||"<li>-</li>"}</ul>
-    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-      <button class="big" onclick="gateOnMap('${l.id}')">Play on map</button>
-      ${ENT[l.src]&&l.src!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.src)}')">Enter ${esc(nameOf(l.src))}</button>`:""}
-      ${ENT[l.dst]&&l.dst!==roomId?`<button class="ghost" onclick="openRoom('${esc(l.dst)}')">Enter ${esc(nameOf(l.dst))}</button>`:""}
-    </div>`;
+    <h4>Isolation at this gate</h4><ul class="ev" style="font-family:var(--sans);font-size:13px">${isoNotes.map(x=>`<li>${x}</li>`).join("")||"<li>-</li>"}</ul></details>`;
   drawer.classList.add("on");$("#dClose").focus();
 }
 window.openGate=openGate;
