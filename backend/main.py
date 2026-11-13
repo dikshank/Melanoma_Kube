@@ -338,9 +338,7 @@ async def predict_endpoint(file: UploadFile = File(...)):
             model=model,
             image_bytes=image_bytes,
             threshold=meta["threshold"],
-            # resize to the size this model was trained on (224 for the B1 model,
-            # 64 for the old simple_cnn) instead of a hard-coded 64
-            img_size=meta.get("img_size", 64),
+            # preprocessing is fixed in predictor.py (copy of the training notebook)
         )
 
         # ── Drift detection ───────────────────────────────────────────────

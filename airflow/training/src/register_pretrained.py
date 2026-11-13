@@ -224,14 +224,21 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
-def already_registered(client: MlflowClient, digest: str) -> bool:
-    """True if a Production version was already created from this exact file."""
+def already_registered(client: MlflowClient, digest: str, threshold: float = None) -> bool:
+    """True if a Production version was already created from this exact file
+    (and, when --threshold is given, with that same threshold)."""
     try:
         for v in client.get_latest_versions(REGISTERED_MODEL_NAME, stages=["Production"]):
             run = client.get_run(v.run_id)
-            if run.data.tags.get("weights_sha256") == digest:
-                logger.info("Version %s already in Production from this file - nothing to do", v.version)
-                return True
+            if run.data.tags.get("weights_sha256") != digest:
+                continue
+            old = run.data.params.get("best_threshold")
+            if threshold is not None and (old is None or abs(float(old) - threshold) > 1e-9):
+                logger.info("Same file is in Production (v%s) but with threshold %s -> "
+                            "registering again with threshold %s", v.version, old, threshold)
+                return False
+            logger.info("Version %s already in Production from this file - nothing to do", v.version)
+            return True
     except Exception:
         pass  # registered model doesn't exist yet
     return False
@@ -349,7 +356,7 @@ def main():
                 digest = "built-in-job"
     else:
         digest = sha256_of(args.weights)
-        if already_registered(client, digest):
+        if already_registered(client, digest, args.threshold):
             return  # Job is safe to re-run
         model = load_any_checkpoint(args.weights)
 

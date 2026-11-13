@@ -42,48 +42,70 @@ RECOMMENDATIONS = {
 }
 
 
-def preprocess_image(image_bytes: bytes, img_size: int = 64) -> torch.Tensor:
+# ── Preprocessing: an exact copy of the training notebook ─────────────────────
+# The served model is p2a_efficientnet_b0_imagenet_full_15ep (EfficientNet-B0,
+# one sigmoid output, trained on ISIC). Its notebook prepared val images in two
+# stages, and the backend repeats both, step for step:
+#
+#   stage 1 = load_and_resize_image() + cache_resized_image():
+#       Image.open -> draft("RGB", (640, 640)) -> convert("RGB")
+#       -> resize so the SHORT side is 320 (bilinear, aspect ratio kept)
+#       -> saved as JPEG quality 95 (the image cache)
+#   stage 2 = LesionDataset(is_training=False):
+#       open the cached JPEG -> convert("RGB") -> Resize(256) -> CenterCrop(224)
+#       -> ToTensor -> Normalize(ImageNet mean/std)
+#
+# Nothing is stretched: the centre square of the photo is used.
+# Do not change any of these numbers without retraining the model.
+PRE_RESIZE_SHORT_SIDE = 320
+DRAFT_SIZE = (2 * PRE_RESIZE_SHORT_SIDE, 2 * PRE_RESIZE_SHORT_SIDE)
+CACHE_JPEG_QUALITY = 95
+
+_val_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+
+def preprocess_image(image_bytes: bytes) -> torch.Tensor:
     """
-    Preprocess raw image bytes into a model-ready tensor.
-
-    Applies the same normalization used during training:
-        - Resize to img_size x img_size
-        - Convert to RGB
-        - Normalize with ImageNet mean/std
-
-    Args:
-        image_bytes (bytes): Raw image bytes from upload.
-        img_size (int): Target size. Must match training img_size.
-
-    Returns:
-        torch.Tensor: Preprocessed tensor of shape (1, 3, img_size, img_size).
+    Turn uploaded image bytes into the (1, 3, 224, 224) tensor the model was
+    validated on, using exactly the notebook's two stages (see above).
 
     Raises:
-        ValueError: If image cannot be opened or processed.
+        ValueError: If the image cannot be opened.
     """
     try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        # ── stage 1: notebook load_and_resize_image() ────────────────────
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            image.draft("RGB", DRAFT_SIZE)        # JPEG: decode at reduced scale, like the notebook
+            image = image.convert("RGB")
+            width, height = image.size
+            scale = PRE_RESIZE_SHORT_SIDE / min(width, height)
+            image = image.resize(
+                (max(1, round(width * scale)), max(1, round(height * scale))),
+                Image.BILINEAR,
+            )
+
+        # ── stage 1b: the notebook stored this as a JPEG (quality 95) ─────
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=CACHE_JPEG_QUALITY)
+        buffer.seek(0)
+
+        # ── stage 2: notebook LesionDataset, validation path ─────────────
+        cached = Image.open(buffer).convert("RGB")
     except Exception as e:
         raise ValueError(f"Cannot open image: {str(e)}")
 
-    transform = transforms.Compose([
-        transforms.Resize((img_size, img_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
-
-    tensor = transform(img).unsqueeze(0)   # add batch dimension → (1, 3, H, W)
-    return tensor
+    return _val_transform(cached).unsqueeze(0)   # add batch dimension -> (1, 3, 224, 224)
 
 
 def predict(
     model: nn.Module,
     image_bytes: bytes,
     threshold: float,
-    img_size: int = 64
 ) -> dict:
     """
     Run inference on a single image.
@@ -93,7 +115,6 @@ def predict(
         image_bytes (bytes): Raw image bytes from upload.
         threshold (float): Classification threshold for malignant class.
                            Lower threshold → higher recall (fewer missed cancers).
-        img_size (int): Image size to resize to before inference.
 
     Returns:
         dict: Prediction result with label, confidence, probability, threshold.
@@ -103,7 +124,7 @@ def predict(
         RuntimeError: If model inference fails.
     """
     # ── Preprocess ────────────────────────────────────────────────────────
-    tensor = preprocess_image(image_bytes, img_size)
+    tensor = preprocess_image(image_bytes)
 
     # ── Inference ─────────────────────────────────────────────────────────
     try:
