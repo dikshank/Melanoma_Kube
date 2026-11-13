@@ -11,3 +11,5 @@ __pycache__/
 !airflow/training/fallback/*.pt
 architecture.html
 eval_results.csv
+isic_v1/
+*.npz

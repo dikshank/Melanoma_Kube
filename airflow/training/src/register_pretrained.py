@@ -83,6 +83,7 @@ from torchvision import models
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dataset import MelanomaDataset            # noqa: E402  same transforms as training
 from evaluate import get_predictions, tune_threshold, compute_metrics  # noqa: E402
+import isic_notebook as nb                      # noqa: E402  the serving model's notebook pipeline
 
 logging.basicConfig(
     level=logging.INFO,
@@ -317,7 +318,10 @@ def main():
     p.add_argument("--threshold", type=float, default=None,
                    help="fixed malignant threshold; default = tune on val set (or 0.5 if no val set)")
     p.add_argument("--mlruns", default="/opt/airflow/mlruns", help="MLflow tracking dir (mlruns-pvc)")
-    p.add_argument("--manifest-dir", default="data/processed/v1/manifests", type=Path)
+    p.add_argument("--manifest-dir", default="data/processed/v1/manifests", type=Path,
+                   help="old toy data; only used when --eval-manifest is missing")
+    p.add_argument("--eval-manifest", default="data/isic_v1/manifests/eval.csv", type=Path,
+                   help="ISIC eval set (tools/isic_subset/prepare_isic_subset.py); scored with the notebook's crop")
     p.add_argument("--experiment", default="pretrained-models")
     p.add_argument("--no-promote", action="store_true", help="register only, don't move to Production")
     p.add_argument("--fallback-export", type=Path,
@@ -386,16 +390,40 @@ def main():
                  f"Backend expects 2 logits: [benign, malignant].")
     logger.info("Sanity check OK: input 1x3x%dx%d -> output %s", args.img_size, args.img_size, tuple(out.shape))
 
-    # ── Evaluate on val (tunes threshold) and test (reporting only) ───────
-    val = evaluate_split(model, args.manifest_dir / "val_manifest.csv", args.img_size, "val")
-    test = evaluate_split(model, args.manifest_dir / "test_manifest.csv", args.img_size, "test")
-
-    if args.threshold is not None:
-        threshold = args.threshold
-    elif val is not None:
-        threshold, _, _ = tune_threshold(*val)      # same recall-first rule as training
+    # ── Evaluate ──────────────────────────────────────────────────────────
+    # Preferred: the ISIC eval set, scored exactly like the notebook (its crop,
+    # its 90%-recall threshold rule). These numbers are what the retraining
+    # DAG's challenger has to beat. Old toy manifests only if it is missing.
+    metrics_to_log = {}
+    if args.eval_manifest.exists():
+        table = nb.read_manifest(args.eval_manifest)
+        loader = DataLoader(nb.LesionDataset(table, is_training=False), batch_size=32, num_workers=0)
+        z = nb.predict_logits(model, loader)
+        y = table["label"].values
+        if args.threshold is not None:
+            threshold = args.threshold
+        else:
+            threshold = nb.evaluate(y, z)["threshold_at_90recall"]
+        m = nb.evaluate(y, z, threshold_prob=threshold)
+        logger.info("eval set %s (%d images, %d malignant), notebook crop: %s",
+                    args.eval_manifest, m["n"], m["positives"],
+                    {k: round(v, 4) for k, v in m.items() if isinstance(v, float)})
+        metrics_to_log = {f"val_{k}": v for k, v in m.items() if k not in ("threshold",)}
     else:
-        threshold = 0.5
+        logger.warning("%s not found - falling back to the old toy manifests (64x64, squash)", args.eval_manifest)
+        val = evaluate_split(model, args.manifest_dir / "val_manifest.csv", args.img_size, "val")
+        test = evaluate_split(model, args.manifest_dir / "test_manifest.csv", args.img_size, "test")
+        if args.threshold is not None:
+            threshold = args.threshold
+        elif val is not None:
+            threshold, _, _ = tune_threshold(*val)      # same recall-first rule as training
+        else:
+            threshold = 0.5
+        for split, res in (("val", val), ("test", test)):
+            if res is not None:
+                m = compute_metrics(*res, threshold=threshold)
+                metrics_to_log.update({f"{split}_{k}": v for k, v in m.items() if k != "threshold"})
+                logger.info("%s metrics: %s", split, m)
     logger.info("Using malignant threshold = %.4f", threshold)
 
     # ── Log run + register model ──────────────────────────────────────────
@@ -417,13 +445,8 @@ def main():
             # /ready + /predict always return is_fallback -> yellow banner in the UI.
             "is_fallback": "true" if is_fallback else "false",
         })
-        for split, res in (("val", val), ("test", test)):
-            if res is None:
-                continue
-            m = compute_metrics(*res, threshold=threshold)
-            # val_recall / val_f1 are what the champion/challenger check compares
-            mlflow.log_metrics({f"{split}_{k}": v for k, v in m.items() if k != "threshold"})
-            logger.info("%s metrics: %s", split, m)
+        # val_auc / val_spec_at_90recall are what the fine-tune challenger is compared on
+        mlflow.log_metrics({k: v for k, v in metrics_to_log.items() if v == v})   # v == v drops NaN
 
         mlflow.pytorch.log_model(
             pytorch_model=model,

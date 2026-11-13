@@ -29,13 +29,13 @@ IDX_TO_LABEL = {0: "benign", 1: "malignant"}
 RECOMMENDATIONS = {
     "malignant": (
         "⚠️ High risk detected. This image shows signs that may indicate "
-        "melanoma. Please consult a dermatologist or medical professional "
+        "a malignant skin lesion (such as melanoma or a skin carcinoma). Please consult a dermatologist or medical professional "
         "as soon as possible. This tool is for screening only and does not "
         "replace professional medical diagnosis."
     ),
     "benign": (
         "✅ Low risk detected. This image does not show strong signs of "
-        "melanoma. However, if you have concerns about a skin lesion, "
+        "a malignant skin lesion. However, if you have concerns about a skin lesion, "
         "please consult a medical professional. Regular skin checks are "
         "always recommended."
     )
@@ -61,18 +61,21 @@ PRE_RESIZE_SHORT_SIDE = 320
 DRAFT_SIZE = (2 * PRE_RESIZE_SHORT_SIDE, 2 * PRE_RESIZE_SHORT_SIDE)
 CACHE_JPEG_QUALITY = 95
 
-_val_transform = transforms.Compose([
+_model_crop = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
+])
+_to_model_tensor = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 
-def preprocess_image(image_bytes: bytes) -> torch.Tensor:
+def model_input_crop(image_bytes: bytes) -> Image.Image:
     """
-    Turn uploaded image bytes into the (1, 3, 224, 224) tensor the model was
-    validated on, using exactly the notebook's two stages (see above).
+    The exact 224x224 image the model sees (before normalization), using the
+    notebook's two stages (see above). Also used for drift detection, so the
+    drift baseline and live uploads are compared on the same pixels.
 
     Raises:
         ValueError: If the image cannot be opened.
@@ -99,7 +102,15 @@ def preprocess_image(image_bytes: bytes) -> torch.Tensor:
     except Exception as e:
         raise ValueError(f"Cannot open image: {str(e)}")
 
-    return _val_transform(cached).unsqueeze(0)   # add batch dimension -> (1, 3, 224, 224)
+    return _model_crop(cached)
+
+
+def preprocess_image(image_bytes: bytes) -> torch.Tensor:
+    """
+    Turn uploaded image bytes into the (1, 3, 224, 224) tensor the model was
+    validated on, using exactly the notebook's two stages (see above).
+    """
+    return _to_model_tensor(model_input_crop(image_bytes)).unsqueeze(0)
 
 
 def predict(

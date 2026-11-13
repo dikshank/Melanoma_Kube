@@ -45,7 +45,7 @@ spec:
             - name: MLFLOW_ARTIFACT_ROOT
               value: /mlruns # This is the path inside the container where the mlruns data will be mounted. This is important because it allows the backend service to access the mlruns data that is shared with other services.
             - name: BASELINE_STATS_PATH
-              value: /app/data/baseline_stats/v1_stats.json # Because airflow saves the baseline stats to /app/data/baseline_stats/v1_stats.json, we need to set this environment variable to point to that path so the backend service can access the baseline stats that is shared with other services.
+              value: /app/data/isic_v1/baseline_stats/isic_v1_stats.json   # computed on the 224x224 model-input crop of ISIC images (tools/isic_subset/prepare_isic_subset.py)
           volumeMounts:
             - name: mlruns-vol # the nickname must match the name of the volume defined above
               mountPath: /mlruns # This is the path inside the container where the mlruns data will be mounted. This is important because it allows the backend service to access the mlruns data that is shared with other services.

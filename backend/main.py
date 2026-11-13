@@ -25,6 +25,7 @@ import time
 import json
 import hashlib
 import numpy as np
+from collections import deque
 from pathlib import Path
 from contextlib import asynccontextmanager
 from PIL import Image
@@ -36,7 +37,7 @@ from starlette.responses import Response, JSONResponse
 
 from logger import get_logger
 from model_loader import load_model, get_model, get_model_meta, check_and_reload
-from predictor import predict
+from predictor import predict, model_input_crop
 from schemas import (
     PredictResponse,
     HealthResponse,
@@ -123,7 +124,9 @@ def _compute_image_histogram(image_bytes: bytes, n_bins: int = 10) -> list:
         list: Normalised histogram counts.
     """
     try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        # Same pixels the model sees (224x224 notebook crop, before normalization),
+        # the same way the baseline (isic_v1_stats.json) was computed.
+        img = model_input_crop(image_bytes)
         arr = np.array(img, dtype=np.float32) / 255.0
         counts, _ = np.histogram(arr.flatten(), bins=n_bins, range=(0.0, 1.0))
         total = sum(counts)
@@ -164,8 +167,13 @@ def _load_baseline_histogram() -> list:
 # Now the actual comparison
 def _compute_drift_score(image_histogram: list) -> float:
     """
-    Compute drift score as mean absolute difference between
-    image histogram and baseline histogram.
+    Drift score = total variation distance between the image histogram and the
+    baseline histogram: half the sum of the absolute differences.
+
+    Both histograms are proportions summing to 1, so this is 0.0 for identical
+    distributions and 1.0 for completely different ones. (The old version took
+    the MEAN over 10 bins, which can never exceed 0.2, so a 0.20 threshold
+    could never fire.)
 
     Args:
         image_histogram (list): Normalised histogram of incoming image.
@@ -184,7 +192,7 @@ def _compute_drift_score(image_histogram: list) -> float:
         for i in range(len(_baseline_histogram))
     ]
 
-    return float(np.mean(diff))
+    return float(sum(diff) / 2)
 
 
 # This will be used when we need to register that something is not right and model needs retraining
@@ -259,7 +267,9 @@ app = FastAPI(
 # ─────────────────────────────────────────────────────────────────────────────
 
 DRIFT_WINDOW_SIZE = 100
-_drift_scores = []
+# Rolling window: always the last 100 scores of this pod. (The old plain list
+# was checked only when it was exactly 100 long, i.e. once per pod lifetime.)
+_drift_scores = deque(maxlen=DRIFT_WINDOW_SIZE)
 _latency_sum = 0.0
 _latency_count = 0
 
@@ -347,7 +357,7 @@ async def predict_endpoint(file: UploadFile = File(...)):
 
         _drift_scores.append(drift)
 
-        if len(_drift_scores) == DRIFT_WINDOW_SIZE:
+        if len(_drift_scores) >= DRIFT_WINDOW_SIZE:
             avg_drift = _update_drift_and_check()
             DRIFT_SCORE.set(avg_drift)
 
