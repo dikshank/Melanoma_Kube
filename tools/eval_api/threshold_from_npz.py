@@ -36,6 +36,8 @@ def sigmoid(x):
 
 def weighted_quantile(values, quantile):
     """The notebook's weighted_quantile() with every weight = 1."""
+    if len(values) == 0:
+        return float("nan")
     order = np.argsort(values)
     cumulative = np.cumsum(np.ones(len(values))) / len(values)
     return float(np.interp(quantile, cumulative, values[order]))
@@ -112,6 +114,9 @@ def main():
 
     for name, (usable, y) in labels.items():
         pos = usable & (y == 1)
+        if pos.sum() < 2:
+            print(f"\n2) label = {name}: only {pos.sum()} positive(s) in these images - no threshold")
+            continue
         t_logit = weighted_quantile(z[pos], 1 - TARGET_RECALL)
         print(f"\n2) label = {name}: ONE threshold for 90% recall on all of val")
         print(f"   logit {t_logit:.4f}  ->  probability (use this) {sigmoid(t_logit):.4f}")
@@ -120,7 +125,11 @@ def main():
             line(t, t_logit, usable & (image_type == t), y)
         print("   honest check (threshold from one patient half, tested on the other):")
         for nm, tune, test in [("tuned on A, tested on B", in_a, ~in_a), ("tuned on B, tested on A", ~in_a, in_a)]:
-            tl = weighted_quantile(z[usable & tune & (y == 1)], 1 - TARGET_RECALL)
+            tune_pos = usable & tune & (y == 1)
+            if tune_pos.sum() == 0 or not (usable & test & (y == 1)).any():
+                print(f"   {nm:34s} skipped: no positives in one of the halves")
+                continue
+            tl = weighted_quantile(z[tune_pos], 1 - TARGET_RECALL)
             line(f"{nm} (p={sigmoid(tl):.4f})", tl, usable & test, y)
 
 
