@@ -61,6 +61,12 @@ spec:
             - --model-name=efficientnet_b0
             - --mlruns=/opt/airflow/mlruns
             - --threshold=0.6147     # 90% recall on val clinical close-ups (tools/eval_api/threshold_from_npz.py); remove to auto-tune
+            # Per photo type (UI dropdown), from threshold_from_npz.py on the full val.csv:
+            #   dermoscopic  0.0423  90% recall within 6272 val images (249 malignant)
+            #   close-up     0.6147  90% recall within  351 val images (106 malignant)
+            #   overview     0.1331  the pooled 90%-recall threshold: only 46 overview val images
+            #                        (29 malignant), too few for an own threshold (0.0347 flagged 71%)
+            - "--type-thresholds=dermoscopic=0.0423;clinical: close-up=0.6147;clinical: overview=0.1331"
           volumeMounts:
             - name: data-vol
               mountPath: /opt/airflow/data   # read-write: a newly built fallback is saved to data/seed_model/
