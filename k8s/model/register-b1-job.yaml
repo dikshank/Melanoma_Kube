@@ -51,9 +51,14 @@ spec:
           command:
             - python
             - training/src/register_pretrained.py
-            - --weights=/opt/airflow/data/seed_model/efficientnet_b1.pt   # rename your file to this, or change it here
-            - --img-size=224                                              # what your B1 was trained on
-            - --model-name=efficientnet_b1
+            # Your model: EfficientNet-B0, 224x224, class 1 = malignant.
+            # The architecture (b0/b1) is detected from the file itself;
+            # --model-name only sets tags/model_name, which tells the
+            # retraining DAG which config to retrain with.
+            # To go back to a B1: point --weights at the B1 file and set --model-name=efficientnet_b1.
+            - --weights=/opt/airflow/data/seed_model/efficientnet_b0.pt   # rename your file to this, or change it here
+            - --img-size=224                                              # what your B0 was trained on
+            - --model-name=efficientnet_b0
             - --mlruns=/opt/airflow/mlruns
             # - --threshold=0.5      # uncomment to force a threshold instead of tuning on val
           volumeMounts:

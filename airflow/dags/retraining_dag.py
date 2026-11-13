@@ -78,7 +78,7 @@ def get_production_config() -> list:
                         model_name = Path(matches[0]).read_text().strip()
                         config_map = {
                             "mobilenet_v3_small": "config_v1_mobilenet.yaml",
-                            "efficientnet_b0": "config_v1_efficientnet.yaml",
+                            "efficientnet_b0": "config_v1_efficientnet_b0_224.yaml",  # your pretrained B0 (224px); the old 64px config is config_v1_efficientnet.yaml
                             "efficientnet_b1": "config_v1_efficientnet_b1.yaml",  # your pretrained B1
                             "efficientnet_b1_fallback": "config_v1_efficientnet_b1.yaml",  # ImageNet fallback -> retrain a full B1
                             "simplecnn": "config_v1_simplecnn.yaml",

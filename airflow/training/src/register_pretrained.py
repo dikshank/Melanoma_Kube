@@ -102,12 +102,27 @@ BUNDLED_FALLBACK = Path(__file__).resolve().parents[1] / "fallback" / "efficient
 # Loading the .pt file
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_b1(num_classes: int) -> nn.Module:
-    """Empty EfficientNet-B1 with a `num_classes` head (no ImageNet download)."""
-    model = models.efficientnet_b1(weights=None)
-    in_features = model.classifier[1].in_features          # 1280
+# Architectures a plain state_dict can be loaded into. B0 and B1 have the
+# same head (Linear 1280 -> n) but a different number of blocks, so the
+# state_dict only fits one of them when loaded with strict=True.
+# To support another torchvision model, add it here.
+ARCH_BUILDERS = {
+    "efficientnet_b0": models.efficientnet_b0,
+    "efficientnet_b1": models.efficientnet_b1,
+}
+
+
+def _build_efficientnet(arch: str, num_classes: int) -> nn.Module:
+    """Empty EfficientNet (b0/b1) with a `num_classes` head (no ImageNet download)."""
+    model = ARCH_BUILDERS[arch](weights=None)
+    in_features = model.classifier[1].in_features          # 1280 for both b0 and b1
     model.classifier[1] = nn.Linear(in_features, num_classes)
     return model
+
+
+def _build_b1(num_classes: int) -> nn.Module:
+    """Empty EfficientNet-B1 (used by the fallback)."""
+    return _build_efficientnet("efficientnet_b1", num_classes)
 
 
 def _clean_state_dict(sd: dict) -> dict:
@@ -157,19 +172,33 @@ def load_any_checkpoint(path: Path) -> nn.Module:
             obj = inner
             break
 
-    # ── 3. Plain state_dict → rebuild B1 and load weights into it ────────
+    # ── 3. Plain state_dict → rebuild the architecture, load weights into it ─
     sd = _clean_state_dict(obj)
     head_key = "classifier.1.weight"
     if head_key not in sd:
         raise ValueError(
             f"'{head_key}' not found - this does not look like a torchvision "
-            f"efficientnet_b1 state_dict. First keys: {list(sd)[:5]}"
+            f"EfficientNet state_dict. First keys: {list(sd)[:5]}"
         )
     num_classes = sd[head_key].shape[0]       # infer head size from the weights
-    model = _build_b1(num_classes)
-    model.load_state_dict(sd, strict=True)    # strict: fail loudly on mismatch
-    logger.info("Loaded state_dict into torchvision efficientnet_b1 (%d classes)", num_classes)
-    return model.eval()
+
+    # Try each known architecture; strict=True means only the right one fits
+    # (B0 and B1 differ in block count, so the wrong one has missing/extra keys).
+    errors = {}
+    for arch in ARCH_BUILDERS:
+        model = _build_efficientnet(arch, num_classes)
+        try:
+            model.load_state_dict(sd, strict=True)
+        except RuntimeError as e:
+            errors[arch] = str(e).splitlines()[0]
+            continue
+        logger.info("Loaded state_dict into torchvision %s (%d classes)", arch, num_classes)
+        return model.eval()
+
+    raise ValueError(
+        "state_dict does not match any known architecture "
+        f"({', '.join(ARCH_BUILDERS)}): {errors}"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
