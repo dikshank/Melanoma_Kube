@@ -60,7 +60,7 @@ spec:
             - --img-size=224                                              # what your B0 was trained on
             - --model-name=efficientnet_b0
             - --mlruns=/opt/airflow/mlruns
-            # - --threshold=0.5      # uncomment to force a threshold instead of tuning on val
+            - --threshold=0.6147     # 90% recall on val clinical close-ups (tools/eval_api/threshold_from_npz.py); remove to auto-tune
           volumeMounts:
             - name: data-vol
               mountPath: /opt/airflow/data   # read-write: a newly built fallback is saved to data/seed_model/
