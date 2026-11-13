@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>MelanoCheck — Early Melanoma Detection</title>
+    <title>LesionScan — Early Melanoma Detection</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -12,9 +12,9 @@
         <div class="header-inner">
             <div class="logo">
                 <span class="logo-icon">🔬</span>
-                <span class="logo-text">MelanoCheck</span>
+                <span class="logo-text">LesionScan</span>
             </div>
-            <p class="header-sub">AI-Assisted Melanoma Screening Tool, By <strong>THE ONE AND ONLY GREAT DIKSHANK SIHAG</strong></p>
+            <p class="header-sub">AI-Assisted Melanoma Screening Tool, By <strong>DIKSHANK SIHAG</strong></p>
         </div>
     </header>
 
@@ -30,6 +30,17 @@
         <section class="card upload-card">
             <h2>Upload Skin Lesion Image</h2>
             <p class="card-desc">Upload a photo of the skin lesion.</p>
+            <!-- The model looks at the centre square of the photo (it crops the edges),
+                 so the spot must be in the middle and fill most of the picture. -->
+            <div class="photo-tips">
+                <strong>📸 For the best result</strong>
+                <ul>
+                    <li>Put the spot in the <strong>centre</strong> of the photo.</li>
+                    <li>Get close, so the spot <strong>fills most of the picture</strong>.</li>
+                    <li>Keep it <strong>sharp</strong> and well lit, with no filters or zoom effects.</li>
+                    <li>One spot per photo.</li>
+                </ul>
+            </div>
             <div class="dropzone" id="dropzone">
                 <div class="dropzone-inner" id="dropzone-inner">
                     <span class="upload-icon">📷</span>
