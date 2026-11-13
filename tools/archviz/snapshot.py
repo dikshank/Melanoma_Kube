@@ -219,7 +219,7 @@ DESCRIBE = {
     "prometheus": "Pull-based metrics store: scrapes /metrics endpoints every 15 s.",
     "grafana": "Dashboards. Its server queries Prometheus with PromQL.",
     "mlflow": "Read-only viewer (mlflow ui) over the MLflow files on mlruns-pvc. Nobody logs to it over the network.",
-    "register-b1-model": "One-time Job: registers the first Production model (your EfficientNet-B1, or the ImageNet fallback) into the MLflow registry on mlruns-pvc.",
+    "register-b1-model": "One-time Job: registers your EfficientNet-B0 (data-pvc/seed_model/efficientnet_b0.pt) with its per-photo-type thresholds into the MLflow registry on mlruns-pvc.",
     "pvc-loader": "Temporary helper pod used with kubectl cp to put data into the PVCs.",
 }
 
@@ -399,12 +399,17 @@ PVC_ANNOT = {
                  "feedback.jsonl": "← backend appends one line per feedback",
                  "retrain_needed.flag": "← backend writes it · retraining DAG reads + deletes it",
                  "backend.log": "← backend's log file",
-                 "feedback_data_archive": "← retraining DAG archives used feedback here"},
+                 "feedback_data_archive": "← retraining DAG archives used feedback here",
+                 "feedback_batches": "← retraining DAG claims feedback here while it trains",
+                 "retrain_in_progress.flag": "← retraining DAG renamed the flag: a run is going on"},
     "data-pvc": {"raw": "← you loaded it (kubectl cp) · data pipeline reads it",
                  "processed": "← data pipeline writes · train.py reads · retraining adds feedback images",
                  "manifests": "← split task: train/val/test CSVs (filepath,label)",
                  "baseline_stats": "← baseline task writes · backend reads it for drift",
-                 "seed_model": "← your .pt goes here · register job reads it (and saves the fallback here)"},
+                 "seed_model": "← your .pt goes here · register job reads it (and saves the fallback here)",
+                 "isic_v1": "← ISIC eval + replay sets (prepare_isic_subset.py): scoring, fine-tuning, drift baseline",
+                 "eval": "← notebook val images: every model is scored on these",
+                 "replay": "← ~1000 ISIC train images mixed into every fine-tune"},
     "mlruns-pvc": {"models": "← model registry: versions + stage (Production/Archived) · backend reads",
                    "artifacts": "← the model itself + reports",
                    "pytorch_model": "← what the backend loads (mlflow.pytorch.load_model)",
@@ -424,7 +429,10 @@ PVC_EXPECTED = {
                  "processed/v1/train/benign/", "processed/v1/train/malignant/", "processed/v1/val/", "processed/v1/test/",
                  "processed/v1/manifests/train_manifest.csv", "processed/v1/manifests/val_manifest.csv",
                  "processed/v1/manifests/test_manifest.csv", "baseline_stats/v1_stats.json",
-                 "seed_model/efficientnet_b1.pt", "seed_model/efficientnet_b1_fallback.pt"],
+                 "seed_model/efficientnet_b0.pt", "seed_model/efficientnet_b1_fallback.pt",
+                 "isic_v1/eval/ISIC_<id>.jpg", "isic_v1/replay/ISIC_<id>.jpg",
+                 "isic_v1/manifests/eval.csv", "isic_v1/manifests/replay.csv",
+                 "isic_v1/baseline_stats/isic_v1_stats.json"],
     "mlruns-pvc": ["<experiment_id>/meta.yaml", "<experiment_id>/<run_id>/meta.yaml",
                    "<experiment_id>/<run_id>/params/img_size", "<experiment_id>/<run_id>/params/best_threshold",
                    "<experiment_id>/<run_id>/metrics/val_recall", "<experiment_id>/<run_id>/tags/model_name",
@@ -844,6 +852,22 @@ def discover_links(model, manifests, objs, live) -> list[dict]:
                           {"at": c["name"], "text": "answers; only the status code / exit code matters"}])
 
     # ── h) known behaviour that isn't in YAML (stated as such) ─────────────
+    # cloudflared gets its routes from the Cloudflare dashboard (remotely managed
+    # tunnel), so nothing in its YAML names the frontend Service.
+    cfd, fsvc = comp_named("cloudflared"), svcs.get("frontend")
+    if cfd and fsvc and not any(l["src"] == cfd["id"] and l["dst"] in fsvc["targets"] for l in links):
+        port = fsvc["ports"][0]["port"] if fsvc["ports"] else 80
+        for t in fsvc["targets"]:
+            add(src=cfd["id"], dst=t, via=fsvc["id"], kind="user", proto="HTTP", port=port,
+                label=f"http://frontend:{port}",
+                payload=PAYLOAD.get(("cloudflared", "frontend"), "Every public request, unchanged."),
+                evidence=["Cloudflare dashboard > Zero Trust > Tunnels > lesionscan > Routes: "
+                          f"lesionscan.com -> http://frontend.{model['meta']['namespace']}.svc.cluster.local:{port}",
+                          f"{fsvc['defined']['file']}: Service frontend"],
+                hops=[{"at": "cloudflared", "text": "route from the dashboard: lesionscan.com -> frontend Service"},
+                      {"at": "CoreDNS", "text": f"frontend.{model['meta']['namespace']}.svc.cluster.local -> ClusterIP"},
+                      {"at": "kube-proxy", "text": "ClusterIP -> one Ready nginx pod"}])
+
     web, sch = comp_named("airflow-webserver"), comp_named("airflow-schedular")
     if web and sch:
         add(src=web["id"], dst=sch["id"], kind="http", proto="HTTP", port=8793, label="fetch task logs :8793",
@@ -985,15 +1009,24 @@ def build_flows(model) -> list[dict]:
     def step(text, link=None, node=None, reverse=False):
         return {"text": text, "link": link, "node": node, "reverse": reverse}
 
+    # the tunnel agent that is running: cloudflared if it has pods, else ngrok
+    def running(name):
+        c = next((c for c in model["components"] if c["name"] == name), None)
+        if c is None:
+            return False
+        n = c.get("readyReplicas") if c.get("readyReplicas") is not None else c.get("replicas")
+        return n is None or n > 0
+    agent = "cloudflared" if running("cloudflared") else "ngrok"
+
     flows = [
         {"id": "predict", "title": "A user clicks Analyse (POST /predict)", "steps": [
             step("The browser sends POST /predict with the image over HTTPS to the public URL.", find("ext:internet", "ext:edge")),
-            step("The edge pushes it down the tunnel the agent pod opened outbound.", find("ext:edge", "ngrok") or find("ext:edge", "cloudflared")),
-            step("The agent calls http://frontend:80. CoreDNS gives the ClusterIP; kube-proxy picks one of the nginx pods.", find("ngrok", "frontend") or find("cloudflared", "frontend")),
+            step(f"The edge pushes it down the tunnel the {agent} pod opened outbound.", find("ext:edge", agent)),
+            step(f"{agent} calls http://frontend:80. CoreDNS gives the ClusterIP; kube-proxy picks one of the nginx pods.", find(agent, "frontend")),
             step("nginx matches location /predict and proxy_passes to backend:8000, which kube-proxy sends to a READY backend pod.", find("frontend", "backend", "user")),
             step("The backend saves the upload to pending_feedback/ on logs-pvc (so feedback can find it later).", find("backend", "pvc:logs-pvc")),
-            step("Inference happens in memory: resize to img_size (224), normalise, EfficientNet-B1 forward, softmax, compare with the tuned threshold, compute drift.", None, "backend-deployment"),
-            step("The JSON answer (label, confidence, image_id, is_fallback) travels back the same way.", find("frontend", "backend", "user"), None, True),
+            step("Inference happens in memory, exactly like the training notebook: short side 320 -> JPEG 95 -> Resize(256) -> CenterCrop(224) -> normalise -> EfficientNet-B0 -> sigmoid. The probability is compared with the threshold of the photo type the user picked (close-up 0.4, dermoscopic 0.0423, overview 0.1331); drift is computed on the same 224 crop.", None, "backend-deployment"),
+            step("The JSON answer (label, malignant_prob, image_id, is_fallback) travels back the same way.", find("frontend", "backend", "user"), None, True),
             step("Later, Prometheus scrapes this pod's /metrics and sees the counters move.", find("prometheus", "backend")),
         ]},
         {"id": "loop", "title": "Feedback → retrain → hot reload (the MLOps loop)", "steps": [
@@ -1001,8 +1034,9 @@ def build_flows(model) -> list[dict]:
             step("The backend moves the image to feedback_data/<label>/ and appends feedback.jsonl on logs-pvc. If error > 10% after ≥ 10 feedbacks (or drift > 0.20) it writes retrain_needed.flag.", find("backend", "pvc:logs-pvc")),
             step("Every 30 minutes the retraining DAG runs in the scheduler pod. check_trigger reads the flag from the SAME folder (/opt/airflow/app_logs).", find("airflow-schedular", "pvc:logs-pvc")),
             step("Task states are written to Postgres the whole time.", find("airflow-schedular", "postgres", "db")),
-            step("prepare_feedback_data copies the images into processed/v1/train and extends the manifest.", find("airflow-schedular", "pvc:data-pvc")),
-            step("trigger_training runs python train.py inside the scheduler pod and logs the run to mlruns-pvc; if val_recall beats Production it promotes the new version.", find("airflow-schedular", "pvc:mlruns-pvc")),
+            step("claim_feedback renames the flag to retrain_in_progress.flag and moves feedback_data/* into feedback_batches/<run>/, so feedback that arrives during training waits for the next run.", find("airflow-schedular", "pvc:logs-pvc")),
+            step("finetune (finetune.py) loads the CURRENT Production model and fine-tunes it on the feedback batch + ~1000 ISIC replay images (data-pvc/isic_v1), with the notebook's recipe: BCE, augmentations, AdamW + cosine.", find("airflow-schedular", "pvc:data-pvc")),
+            step("Champion and challenger are both scored on the same ISIC eval set with the notebook crop. The new model is promoted only if specificity at 90% recall is >= +0.02 and AUC is not worse; otherwise it goes to Staging. Logged to mlruns-pvc.", find("airflow-schedular", "pvc:mlruns-pvc")),
             step("Airflow pushes task metrics over UDP to statsd-exporter.", find("airflow-schedular", "statsd")),
             step("Within 30 s, the kubelet's readiness probe calls /ready on each backend pod ...", find("cp:kubelet", "backend", "probe", "readiness")),
             step("... /ready runs check_and_reload(): the Production version changed, so it loads the new model from mlruns-pvc. No rebuild, no rollout.", find("backend", "pvc:mlruns-pvc")),
@@ -1049,7 +1083,7 @@ def build_flows(model) -> list[dict]:
 
 QUESTIONS = [
     {"q": "Walk me through what happens when a user clicks Analyse.", "show": {"flow": "predict"},
-     "a": "Browser → HTTPS → tunnel edge → (outbound tunnel) → ngrok pod → Service frontend (CoreDNS + kube-proxy) → nginx pod → proxy_pass → Service backend → a READY FastAPI pod → saves the upload to logs-pvc → in-memory B1 inference → JSON back the same way."},
+     "a": "Browser → HTTPS → tunnel edge → (outbound tunnel) → cloudflared pod (lesionscan.com) → Service frontend (CoreDNS + kube-proxy) → nginx pod → proxy_pass → Service backend → a READY FastAPI pod → saves the upload to logs-pvc → in-memory EfficientNet-B0 inference with the notebook's exact crop → threshold for the chosen photo type → JSON back the same way."},
     {"q": "What's the difference between a Pod, a Deployment and a Service?", "show": {"room": "backend-deployment"},
      "a": "Pod = the running containers (here one uvicorn process). Deployment = 'keep 3 of these from backend-image:v1', via a ReplicaSet, and roll updates. Service = no code at all: a stable DNS name + virtual IP that selects pods by label and only includes Ready ones."},
     {"q": "Who actually receives traffic on port 8000?", "show": {"room": "backend-deployment"},
@@ -1057,7 +1091,7 @@ QUESTIONS = [
     {"q": "Why does Prometheus scrape the pods and not the Service?", "show": {"flow": "metrics"},
      "a": "Each pod keeps its own counters. Through the Service each scrape would hit a random pod and the series would jump. kubernetes_sd_configs (role: pod) lists pods via the API server (hence the ServiceAccount + Role) and scrapes each one."},
     {"q": "How does a new model reach production without redeploying?", "show": {"flow": "loop"},
-     "a": "train.py promotes a better version in the MLflow registry on mlruns-pvc. The readiness probe calls /ready every 30 s, which runs check_and_reload() and loads the new Production version into memory."},
+     "a": "The retraining DAG's finetune.py promotes a better version (champion vs challenger on a fixed ISIC eval set) in the MLflow registry on mlruns-pvc. The readiness probe calls /ready every 30 s, which runs check_and_reload() and loads the new Production version into memory."},
     {"q": "What happens if a backend pod dies mid-traffic?", "show": {"flow": "poddies"},
      "a": "Its IP leaves the Service endpoints, kube-proxy routes to the other two, controller-manager creates a replacement, scheduler binds it, kubelet starts it, it loads the model, readiness passes, it rejoins. In-flight requests on the dead pod fail; new ones don't."},
     {"q": "Why does readiness return 503 when no model is loaded?", "show": {"flow": "bootstrap"},
@@ -1065,15 +1099,15 @@ QUESTIONS = [
     {"q": "How do the backend and Airflow share data?", "show": {"room": "pvc:logs-pvc"},
      "a": "Through PVCs mounted in both: logs-pvc is /app/logs in the backend and /opt/airflow/app_logs in the scheduler; mlruns-pvc is the model registry for both. They're ReadWriteOnce = one NODE, fine on 1-node minikube; multi-node needs RWX or S3/MinIO + an MLflow server."},
     {"q": "Why does the scheduler mount the volumes but the webserver doesn't?", "show": {"room": "airflow-schedular"},
-     "a": "LocalExecutor: no worker pods, the scheduler forks every task (including train.py) inside its own pod. The webserver only shows the UI and writes dag_run rows to Postgres."},
+     "a": "LocalExecutor: no worker pods, the scheduler forks every task (including finetune.py) inside its own pod. The webserver only shows the UI and writes dag_run rows to Postgres."},
     {"q": "What isolates one component from another here?", "show": {"room": "postgres"},
      "a": "Each pod has its own network, PID and mount namespaces and cgroup limits (requests/limits). Services are ClusterIP = unreachable from outside the cluster. Volumes are only visible where mounted, read-only where marked. BUT there are no NetworkPolicies, so any pod in the cluster could connect to postgres:5432: that's the gap to name."},
     {"q": "How do Airflow's metrics get to Grafana?", "show": {"flow": "metrics"},
      "a": "Push → bridge → pull: StatsD over UDP to statsd-exporter:8125, Prometheus scrapes :9102, Grafana runs PromQL against prometheus:9090."},
     {"q": "How is the app exposed to the internet?", "show": {"room": "ngrok"},
-     "a": "A tunnel agent pod dials OUT to ngrok/Cloudflare and forwards requests to the frontend Service. No inbound port, works behind home NAT/CGNAT. LoadBalancer needs a cloud; NodePort on a laptop isn't internet-reachable."},
+     "a": "Two cloudflared pods dial OUT to Cloudflare (lesionscan.com) and forward requests to the frontend Service; the route itself is configured in the Cloudflare dashboard. No inbound port, works behind home NAT/CGNAT. LoadBalancer needs a cloud; NodePort on a laptop isn't internet-reachable."},
     {"q": "How are secrets handled?", "show": {"room": "secret:airflow-secret"},
-     "a": "Kubernetes Secrets injected as env vars; they're base64 in etcd, not encrypted, so RBAC is the protection. The ngrok token is created on the command line and never committed. Production: External Secrets/Vault + etcd encryption."},
+     "a": "Kubernetes Secrets injected as env vars; they're base64 in etcd, not encrypted, so RBAC is the protection. The tunnel tokens (cloudflared-token, ngrok) are created on the command line and never committed. Production: External Secrets/Vault + etcd encryption."},
     {"q": "Why Recreate for Postgres but RollingUpdate for the backend?", "show": {"room": "postgres"},
      "a": "RollingUpdate keeps stateless pods available during updates. Anything owning an RWO volume or a lock (Postgres, scheduler, Prometheus, Grafana, MLflow) uses Recreate so two copies never write the same files."},
     {"q": "What does the kubelet do for your pods?", "show": {"room": "cp:kubelet"},
