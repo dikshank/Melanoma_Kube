@@ -1,0 +1,80 @@
+# =============================================================================
+# cloudflared.yaml - lesionscan.com -> Cloudflare Tunnel -> frontend Service
+#
+# Same idea as ngrok: the pod DIALS OUT to Cloudflare's edge and keeps the
+# connection open; visitors to https://lesionscan.com come back down that
+# connection. No NodePort, no LoadBalancer, no open port on the laptop.
+#
+#   visitor -> Cloudflare edge (HTTPS, lesionscan.com)
+#           == outbound tunnel opened by this pod ==>
+#           cloudflared pod -> http://frontend.melanoma-production.svc.cluster.local:80
+#
+# Where things are configured:
+#   - WHICH hostname goes WHERE ("public hostname": lesionscan.com ->
+#     http://frontend.melanoma-production.svc.cluster.local:80) is set in the
+#     Cloudflare dashboard (Zero Trust > Networks > Tunnels), not here.
+#     A "remotely managed" tunnel: the pod gets its routes from Cloudflare.
+#   - The pod only needs the tunnel TOKEN, kept in a Secret (never in git):
+#       kubectl create secret generic cloudflared-token -n melanoma-production ^
+#           --from-literal=TUNNEL_TOKEN=<token from the dashboard>
+#
+# 2 replicas: both connect with the same token; Cloudflare spreads visitors
+# over them, and if one pod dies the site stays up (ngrok's free plan allows
+# only one agent, so it had to be 1).
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: melanoma-production
+  labels:
+    app: cloudflared
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      containers:
+        - name: cloudflared
+          # pinned: 2026.8.1 fixes a trailing-slash bug in an earlier release
+          image: cloudflare/cloudflared:2026.8.1
+          args:
+            - tunnel
+            - --no-autoupdate          # the image version is managed here, not by cloudflared
+            - --metrics
+            - 0.0.0.0:2000             # /ready for the probes below
+            - run                      # token-based run: routes come from the dashboard
+          env:
+            - name: TUNNEL_TOKEN       # cloudflared reads the token from this variable
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-token
+                  key: TUNNEL_TOKEN
+          ports:
+            - name: metrics
+              containerPort: 2000
+          # /ready answers 200 only while at least one connection to the edge is up
+          readinessProbe:
+            httpGet: {path: /ready, port: 2000}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /ready, port: 2000}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: "20m", memory: "32Mi"}
+            limits: {cpu: "200m", memory: "128Mi"}
+          securityContext:
+            runAsNonRoot: true
+            # the image's USER is the NAME "nonroot"; Kubernetes can only verify a
+            # numeric uid, so give it explicitly (distroless nonroot = 65532)
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true

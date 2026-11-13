@@ -165,3 +165,19 @@ Do the same for `frontend-deployment`, `airflow-schedular` and `airflow-webserve
 | Prometheus target DOWN | wrong Service name or port | Prometheus UI, then Status, then Targets |
 | Scheduler `OOMKilled` (137) | B1 retraining at 224px is heavy | raise the limit in `airflow-schedular.yaml` or lower `batch_size` |
 | `Permission denied` writing to a PVC | uid 50000 vs root | rerun the `chmod -R 777` step with the loader pod |
+
+## Custom domain: lesionscan.com (Cloudflare Tunnel)
+
+1. Cloudflare dashboard > Zero Trust > Networks > Tunnels > Create a tunnel > Cloudflared,
+   name `lesionscan`. Copy the token (the long string after `--token` in the install command).
+2. Public hostname: domain `lesionscan.com`, type `HTTP`,
+   URL `frontend.melanoma-production.svc.cluster.local:80`.
+3. In the cluster:
+
+```bat
+kubectl create secret generic cloudflared-token -n melanoma-production --from-literal=TUNNEL_TOKEN=<token>
+kubectl apply -f k8s/cloudflared/cloudflared.yaml
+kubectl rollout status deploy/cloudflared -n melanoma-production
+```
+
+4. When https://lesionscan.com works, stop ngrok: `kubectl scale deploy/ngrok -n melanoma-production --replicas=0`
