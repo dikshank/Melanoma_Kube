@@ -165,9 +165,15 @@ def main():
     model.eval()
 
     # ── challenger on the same eval set ──────────────────────────────────
-    chal = nb.evaluate(y_eval, score(model, eval_table, 32))
+    z_chal = score(model, eval_table, 32)
+    chal = nb.evaluate(y_eval, z_chal)
     threshold = chal["threshold_at_90recall"]
-    chal_at_t = nb.evaluate(y_eval, score(model, eval_table, 32), threshold_prob=threshold)
+    chal_at_t = nb.evaluate(y_eval, z_chal, threshold_prob=threshold)
+    # Own threshold for each photo type with enough malignant eval images; the
+    # others use `threshold` (the backend falls back to best_threshold).
+    types = eval_table["image_type"].fillna("").values if "image_type" in eval_table else np.array([""] * len(y_eval))
+    type_thresholds = nb.per_type_thresholds(y_eval, z_chal, types)
+    logger.info("challenger per-type thresholds: %s (other types: %.4f)", type_thresholds, threshold)
     better = (chal["spec_at_90recall"] >= champ["spec_at_90recall"] + args.margin
               and chal["auc"] >= champ["auc"] - args.auc_tolerance)
     logger.info("challenger on eval: AUC %.4f, spec@90%%recall %.4f, threshold %.4f -> %s",
@@ -183,6 +189,7 @@ def main():
             "epochs": args.epochs, "lr": args.lr, "batch_size": args.batch_size,
             "weight_decay": args.weight_decay, "feedback_weight": args.feedback_weight,
             "preprocess": "notebook: short320 + jpeg95 -> resize256 -> crop224",
+            **{nb.threshold_param(t): v for t, v in type_thresholds.items()},
         })
         mlflow.set_tags({"model_name": model_name, "is_fallback": "false", "experiment_type": "finetune",
                          "promotion_result": "promoted" if better else "kept_champion"})
@@ -198,7 +205,8 @@ def main():
     logger.info("registered v%s -> %s", version, "Production" if better else "Staging")
     finish(promoted=better, version=version, run_id=run_id, base_version=champ_version,
            feedback=len(fb), champion_auc=champ["auc"], champion_spec90=champ["spec_at_90recall"],
-           challenger_auc=chal["auc"], challenger_spec90=chal["spec_at_90recall"], threshold=threshold)
+           challenger_auc=chal["auc"], challenger_spec90=chal["spec_at_90recall"], threshold=threshold,
+           type_thresholds=type_thresholds)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,7 @@ try:
 except ImportError:
     sys.exit("Missing package: run  pip install requests")
 
+KNOWN_TYPES = {"dermoscopic", "clinical: close-up", "clinical: overview"}
 RESULT_FIELDS = ["isic_id", "image_type", "diagnosis_1", "y_malignant", "y_melanoma",
                  "label", "malignant_prob", "threshold_used", "image_id", "error"]
 
@@ -117,7 +118,10 @@ def predict_one(session: requests.Session, url: str, row: dict, retries: int = 3
     for attempt in range(retries):
         try:
             with open(row["path"], "rb") as f:
-                resp = session.post(url, files={"file": (row["path"].name, f, mime)}, timeout=120)
+                # send the photo type like the UI dropdown does, so the backend uses
+                # that type's threshold (types it doesn't know are sent as nothing)
+                data = {"image_type": row["image_type"]} if row["image_type"] in KNOWN_TYPES else {}
+                resp = session.post(url, files={"file": (row["path"].name, f, mime)}, data=data, timeout=120)
             if resp.status_code == 200:
                 j = resp.json()
                 out.update(label=j["label"], malignant_prob=j["malignant_prob"],
@@ -182,11 +186,13 @@ def auc(y: list, p: list) -> float:
     return (rank_sum - pos * (pos + 1) / 2) / (pos * neg)
 
 
-def scores(y: list, p: list, thr: float) -> dict:
-    tp = sum(1 for t, q in zip(y, p) if t == 1 and q >= thr)
-    fn = sum(1 for t, q in zip(y, p) if t == 1 and q < thr)
-    fp = sum(1 for t, q in zip(y, p) if t == 0 and q >= thr)
-    tn = sum(1 for t, q in zip(y, p) if t == 0 and q < thr)
+def scores(y: list, p: list, thr) -> dict:
+    """thr: one threshold, or a list with each image's own threshold (per photo type)."""
+    th = thr if isinstance(thr, list) else [thr] * len(y)
+    tp = sum(1 for t, q, c in zip(y, p, th) if t == 1 and q >= c)
+    fn = sum(1 for t, q, c in zip(y, p, th) if t == 1 and q < c)
+    fp = sum(1 for t, q, c in zip(y, p, th) if t == 0 and q >= c)
+    tn = sum(1 for t, q, c in zip(y, p, th) if t == 0 and q < c)
     div = lambda a, b: a / b if b else float("nan")
     return {"n": len(y), "pos": tp + fn, "TP": tp, "FP": fp, "FN": fn, "TN": tn,
             "recall": div(tp, tp + fn), "precision": div(tp, tp + fp),
@@ -211,7 +217,8 @@ def report(results_path: Path) -> None:
         print("no successful predictions to score")
         return
     p = [float(r["malignant_prob"]) for r in res]
-    thr = float(res[0]["threshold_used"])
+    thr = [float(r["threshold_used"]) for r in res]            # each image's own (per photo type)
+    thr_text = ", ".join(sorted({f"{t:.4f}" for t in thr}))
     types = sorted({r["image_type"] for r in res})
 
     cols = ["n", "pos", "TP", "FP", "FN", "TN", "recall", "precision", "specificity", "accuracy", "AUC"]
@@ -224,12 +231,12 @@ def report(results_path: Path) -> None:
         y = [int(r[target]) for r in res]
         title = "MELANOMA vs not (what the model was trained for)" if target == "y_melanoma" \
             else "MALIGNANT vs benign (diagnosis_1; includes BCC/SCC)"
-        print(f"\n=== {title} | app threshold {thr:.4f} ===")
+        print(f"\n=== {title} | app threshold(s) {thr_text} ===")
         print(header)
         print(line("ALL", scores(y, p, thr)))
         for t in types:
             idx = [i for i, r in enumerate(res) if r["image_type"] == t]
-            print(line(t, scores([y[i] for i in idx], [p[i] for i in idx], thr)))
+            print(line(t, scores([y[i] for i in idx], [p[i] for i in idx], [thr[i] for i in idx])))
 
         t90 = threshold_for_recall(y, p, 0.90)
         print(f"\n  threshold that would give 90% recall here: {t90:.4f}")

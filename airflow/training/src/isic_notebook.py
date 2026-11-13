@@ -53,6 +53,11 @@ BLUR_RADIUS_RANGE = (0.5, 2.0)
 DOWNSCALE_RANGE = (0.35, 1.0)
 JPEG_QUALITY_RANGE = (30, 70)
 
+# Photo types; each can have its own threshold, stored as params/threshold_<key>
+# (backend/model_loader.py reads them with the same rule).
+IMAGE_TYPES = ["dermoscopic", "clinical: close-up", "clinical: overview"]
+MIN_POSITIVES_PER_TYPE = 10      # fewer malignant eval images -> no own threshold
+
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
@@ -229,3 +234,31 @@ def evaluate(y: np.ndarray, z: np.ndarray, threshold_prob: float = None) -> dict
         **{k: v for k, v in at_t.items()},
         "n": int(len(y)), "positives": int((y == 1).sum()),
     }
+
+
+def threshold_param(image_type: str) -> str:
+    """'clinical: close-up' -> 'threshold_clinical_close_up'."""
+    import re
+    return "threshold_" + re.sub(r"[^a-z0-9]+", "_", image_type.lower()).strip("_")
+
+
+def parse_type_thresholds(text: str) -> dict:
+    """'dermoscopic=0.12;clinical: close-up=0.61' -> {type: prob}; unknown types are an error."""
+    out = {}
+    for part in filter(None, (p.strip() for p in (text or "").split(";"))):
+        name, _, value = part.rpartition("=")
+        name = name.strip()
+        if name not in IMAGE_TYPES:
+            raise ValueError(f"unknown image type {name!r}; expected one of {IMAGE_TYPES}")
+        out[name] = float(value)
+    return out
+
+
+def per_type_thresholds(y: np.ndarray, z: np.ndarray, image_type: np.ndarray) -> dict:
+    """90%-recall threshold (probability) per photo type with enough malignant images."""
+    out = {}
+    for t in IMAGE_TYPES:
+        m = image_type == t
+        if (y[m] == 1).sum() >= MIN_POSITIVES_PER_TYPE:
+            out[t] = float(sigmoid(threshold_for_recall(y[m], z[m])))
+    return out

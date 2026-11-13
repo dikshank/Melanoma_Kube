@@ -32,6 +32,7 @@ class PredictResponse(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, example=0.87)
     malignant_prob: float = Field(..., ge=0.0, le=1.0, example=0.87)
     threshold_used: float = Field(..., ge=0.0, le=1.0, example=0.35)
+    image_type: Optional[str] = Field(None, example="clinical: close-up")
     recommendation: str = Field(
         ...,
         example="High risk detected. Please consult a dermatologist immediately."
@@ -67,6 +68,7 @@ class ReadyResponse(BaseModel):
     model_name: Optional[str] = Field(None, example="mobilenet_v3_small")
     model_version: Optional[str] = Field(None, example="3")
     classification_threshold: Optional[float] = Field(None, example=0.35)
+    type_thresholds: Optional[dict] = Field(None, example={"clinical: close-up": 0.61})
     # Always present (False when no model / real model). UI shows a yellow
     # banner + yellow status dot when True.
     is_fallback: bool = Field(False, example=False)

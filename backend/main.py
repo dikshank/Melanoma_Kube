@@ -25,18 +25,19 @@ import time
 import json
 import hashlib
 import numpy as np
+from typing import Optional
 from collections import deque
 from pathlib import Path
 from contextlib import asynccontextmanager
 from PIL import Image
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response, JSONResponse
 
 from logger import get_logger
-from model_loader import load_model, get_model, get_model_meta, check_and_reload
+from model_loader import load_model, get_model, get_model_meta, check_and_reload, IMAGE_TYPES
 from predictor import predict, model_input_crop
 from schemas import (
     PredictResponse,
@@ -290,7 +291,7 @@ def _update_drift_and_check() -> float:
 
 
 @app.post("/predict", response_model=PredictResponse)
-async def predict_endpoint(file: UploadFile = File(...)):
+async def predict_endpoint(file: UploadFile = File(...), image_type: Optional[str] = Form(None)):
     """
     Classify an uploaded skin lesion image as malignant or benign.
 
@@ -325,6 +326,10 @@ async def predict_endpoint(file: UploadFile = File(...)):
             detail=f"Invalid file type: {file.content_type}. Only JPEG and PNG supported.",
         )
 
+    if image_type is not None and image_type not in IMAGE_TYPES:
+        REQUEST_COUNT.labels(endpoint="/predict", method="POST", status_code="400").inc()
+        raise HTTPException(status_code=400, detail=f"image_type must be one of {IMAGE_TYPES}")
+
     try:
         image_bytes = await file.read()
 
@@ -344,10 +349,13 @@ async def predict_endpoint(file: UploadFile = File(...)):
 
         # ── Run inference ─────────────────────────────────────────────────
         meta = get_model_meta()
+        # Each photo type has its own 90%-recall threshold (dropdown in the UI);
+        # a missing type uses the model's default threshold.
+        threshold = (meta.get("type_thresholds") or {}).get(image_type, meta["threshold"])
         result = predict(
             model=model,
             image_bytes=image_bytes,
-            threshold=meta["threshold"],
+            threshold=threshold,
             # preprocessing is fixed in predictor.py (copy of the training notebook)
         )
 
@@ -387,6 +395,7 @@ async def predict_endpoint(file: UploadFile = File(...)):
 
         return PredictResponse(
             image_id=image_id,
+            image_type=image_type,
             is_fallback=meta.get("is_fallback", False),   # UI adds a warning to the result
             **result,
         )
@@ -461,6 +470,7 @@ async def ready():
         model_name=meta.get("name"),
         model_version=meta.get("version"),
         classification_threshold=meta.get("threshold"),
+        type_thresholds=meta.get("type_thresholds") or None,
         is_fallback=meta.get("is_fallback", False),
         status="ready",
     )

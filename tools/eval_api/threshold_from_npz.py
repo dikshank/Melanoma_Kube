@@ -18,6 +18,9 @@ saved (best_epoch) and the isic_id of every val image. This script:
      halves, seed 7), applied to the other half
 
 Usage (cmd, from Melanoma_Kube):
+    # with the notebook's own val split (all photo types, its training label) - preferred:
+    python tools\\eval_api\\threshold_from_npz.py p2a_efficientnet_b0_imagenet_full_15ep__s0.npz C:\\isic\\val.csv
+    # or with the ISIC metadata.csv of a local image folder:
     python tools\\eval_api\\threshold_from_npz.py p2a_efficientnet_b0_imagenet_full_15ep__s0.npz C:\\Users\\Dikshank\\Documents\\ISIC-images\\metadata.csv
 """
 
@@ -60,7 +63,7 @@ def auc(y, s):
 def main():
     if len(sys.argv) != 3:
         sys.exit(__doc__)
-    npz_path, meta_path = sys.argv[1], sys.argv[2]
+    npz_path, meta_path = sys.argv[1], sys.argv[2]     # meta: ISIC metadata.csv or the split's val.csv
 
     d = np.load(npz_path, allow_pickle=True)
     best = int(d["best_epoch"])
@@ -82,12 +85,17 @@ def main():
     rows = [meta[i] for i, k in zip(ids, keep) if k]
     image_type = np.array([r.get("image_type", "") for r in rows])
     patient = np.array([r.get("patient_id") or r["isic_id"] for r in rows])
-    d1 = np.array([(r.get("diagnosis_1") or "").strip() for r in rows])
-    text = [f'{r.get("diagnosis_2", "")} {r.get("diagnosis_3", "")}'.lower() for r in rows]
-    labels = {
-        "malignant": (np.isin(d1, ["Benign", "Malignant"]), (d1 == "Malignant").astype(int)),
-        "melanoma": (np.ones(len(rows), bool), np.array([int("melanoma" in t) for t in text])),
-    }
+    if "label" in rows[0]:
+        # the notebook's own split file (val.csv): its label column IS the training label
+        lab = np.array([int(float(r["label"])) if r.get("label") not in (None, "") else -1 for r in rows])
+        labels = {"val.csv label": (lab >= 0, np.where(lab >= 0, lab, 0))}
+    else:
+        d1 = np.array([(r.get("diagnosis_1") or "").strip() for r in rows])
+        text = [f'{r.get("diagnosis_2", "")} {r.get("diagnosis_3", "")}'.lower() for r in rows]
+        labels = {
+            "malignant": (np.isin(d1, ["Benign", "Malignant"]), (d1 == "Malignant").astype(int)),
+            "melanoma": (np.ones(len(rows), bool), np.array([int("melanoma" in t) for t in text])),
+        }
     types = [t for t in ["dermoscopic", "clinical: close-up", "clinical: overview"] if (image_type == t).any()]
 
     # ── 1. which label reproduces the notebook? ──────────────────────────
@@ -123,6 +131,18 @@ def main():
         line("ALL", t_logit, usable, y)
         for t in types:
             line(t, t_logit, usable & (image_type == t), y)
+        # own threshold per photo type (the UI asks the user for the type)
+        per_type = {}
+        for t in types:
+            m = usable & (image_type == t)
+            if (y[m] == 1).sum() >= 10:
+                per_type[t] = sigmoid(weighted_quantile(z[m & (y == 1)], 1 - TARGET_RECALL))
+        if per_type:
+            print("   per photo type (90% recall within each type):")
+            for t, pt in per_type.items():
+                line(f"{t} @ {pt:.4f}", np.log(pt / (1 - pt)), usable & (image_type == t), y)
+            print("   --type-thresholds for the register Job:")
+            print('     "' + ";".join(f"{t}={pt:.4f}" for t, pt in per_type.items()) + '"')
         print("   honest check (threshold from one patient half, tested on the other):")
         for nm, tune, test in [("tuned on A, tested on B", in_a, ~in_a), ("tuned on B, tested on A", ~in_a, in_a)]:
             tune_pos = usable & tune & (y == 1)

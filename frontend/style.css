@@ -132,6 +132,26 @@ main {
 }
 
 /* ── Analyse button ───────────────────────────────────────── */
+/* ── Photo type dropdown ──────────────────────────────────── */
+.type-select { margin: 1rem 0; }
+.type-select label {
+    display: block;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 0.4rem;
+}
+.type-select select {
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--gray-800);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.type-select select:focus { outline: 2px solid var(--teal-light); border-color: var(--teal); }
+
 .btn-analyse {
     width: 100%;
     padding: 0.85rem;

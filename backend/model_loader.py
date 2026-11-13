@@ -222,6 +222,28 @@ def _get_threshold_from_run(run_id: str) -> tuple:
     return 0.35, "unknown", 64
 
 
+# Photo types the model knows (the notebook's three). Each can have its own
+# threshold, logged by the register Job / fine-tune as params/threshold_<key>.
+IMAGE_TYPES = ["dermoscopic", "clinical: close-up", "clinical: overview"]
+
+
+def threshold_param(image_type: str) -> str:
+    """'clinical: close-up' -> 'threshold_clinical_close_up' (same rule as isic_notebook.py)."""
+    import re
+    return "threshold_" + re.sub(r"[^a-z0-9]+", "_", image_type.lower()).strip("_")
+
+
+def _get_type_thresholds(run_id: str) -> dict:
+    """Per-photo-type thresholds from params/threshold_<type>; missing types are left out."""
+    out = {}
+    for run_dir in glob.glob(str(Path(_get_mlruns_path()) / "*" / run_id)):
+        for t in IMAGE_TYPES:
+            f = Path(run_dir) / "params" / threshold_param(t)
+            if f.exists():
+                out[t] = float(f.read_text().strip())
+    return out
+
+
 def _get_is_fallback(run_id: str) -> bool:
     """Read tags/is_fallback straight from the mlruns folder (same style as above)."""
     for run_dir in glob.glob(str(Path(_get_mlruns_path()) / "*" / run_id)):
@@ -281,6 +303,8 @@ def load_model() -> bool:
         _model_meta["name"] = model_name_tag
         _model_meta["img_size"] = img_size
         _model_meta["is_fallback"] = _get_is_fallback(run_id)
+        _model_meta["type_thresholds"] = _get_type_thresholds(run_id)
+        logger.info("Per-type thresholds: %s (others use %.4f)", _model_meta["type_thresholds"], threshold)
         MODEL_IS_FALLBACK.set(1 if _model_meta["is_fallback"] else 0)
         if _model_meta["is_fallback"]:
             logger.warning(

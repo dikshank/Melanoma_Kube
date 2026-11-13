@@ -225,7 +225,8 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
-def already_registered(client: MlflowClient, digest: str, threshold: float = None) -> bool:
+def already_registered(client: MlflowClient, digest: str, threshold: float = None,
+                       type_thresholds: dict = None) -> bool:
     """True if a Production version was already created from this exact file
     (and, when --threshold is given, with that same threshold)."""
     try:
@@ -238,6 +239,12 @@ def already_registered(client: MlflowClient, digest: str, threshold: float = Non
                 logger.info("Same file is in Production (v%s) but with threshold %s -> "
                             "registering again with threshold %s", v.version, old, threshold)
                 return False
+            for t, value in (type_thresholds or {}).items():
+                stored = run.data.params.get(nb.threshold_param(t))
+                if stored is None or abs(float(stored) - value) > 1e-9:
+                    logger.info("Same file is in Production (v%s) but %s threshold differs -> registering again",
+                                v.version, t)
+                    return False
             logger.info("Version %s already in Production from this file - nothing to do", v.version)
             return True
     except Exception:
@@ -318,6 +325,9 @@ def main():
     p.add_argument("--threshold", type=float, default=None,
                    help="fixed malignant threshold; default = tune on val set (or 0.5 if no val set)")
     p.add_argument("--mlruns", default="/opt/airflow/mlruns", help="MLflow tracking dir (mlruns-pvc)")
+    p.add_argument("--type-thresholds", default="",
+                   help="per photo type, e.g. 'dermoscopic=0.12;clinical: close-up=0.61;clinical: overview=0.30' "
+                        "(tools/eval_api/threshold_from_npz.py prints this); other types use --threshold")
     p.add_argument("--manifest-dir", default="data/processed/v1/manifests", type=Path,
                    help="old toy data; only used when --eval-manifest is missing")
     p.add_argument("--eval-manifest", default="data/isic_v1/manifests/eval.csv", type=Path,
@@ -360,7 +370,7 @@ def main():
                 digest = "built-in-job"
     else:
         digest = sha256_of(args.weights)
-        if already_registered(client, digest, args.threshold):
+        if already_registered(client, digest, args.threshold, nb.parse_type_thresholds(args.type_thresholds)):
             return  # Job is safe to re-run
         model = load_any_checkpoint(args.weights)
 
@@ -425,6 +435,9 @@ def main():
                 metrics_to_log.update({f"{split}_{k}": v for k, v in m.items() if k != "threshold"})
                 logger.info("%s metrics: %s", split, m)
     logger.info("Using malignant threshold = %.4f", threshold)
+    type_thresholds = nb.parse_type_thresholds(args.type_thresholds)
+    if type_thresholds:
+        logger.info("Per-type thresholds: %s", type_thresholds)
 
     # ── Log run + register model ──────────────────────────────────────────
     mlflow.set_experiment(args.experiment)
@@ -435,6 +448,8 @@ def main():
             "best_threshold": threshold,        # <- backend reads this
             "num_classes": NUM_CLASSES,
             "source": "imagenet_fallback" if is_fallback else "pretrained_file",
+            # backend picks the threshold of the photo type the user selected
+            **{nb.threshold_param(t): v for t, v in type_thresholds.items()},
         })
         mlflow.set_tags({
             "model_name": args.model_name,      # <- backend + retraining DAG read this
