@@ -356,6 +356,24 @@ def main():
     # ── Sanity check ──────────────────────────────────────────────────────
     with torch.no_grad():
         out = model(torch.zeros(1, 3, args.img_size, args.img_size))
+    if out.shape == (1, 1):
+        # Single-logit model (trained with sigmoid / BCEWithLogitsLoss): the one
+        # output z is the malignant logit. The backend expects 2 logits and
+        # takes softmax(...)[1]. Append a FIXED layer z -> [0, z]:
+        #     softmax([0, z])[1] = e^z / (1 + e^z) = sigmoid(z)
+        # so predictions are exactly the same as the original model.
+        # Only standard torch layers (Sequential + Linear) are used, so the
+        # pickled model loads in the backend without any custom class.
+        to_two = nn.Linear(1, 2)
+        with torch.no_grad():
+            to_two.weight.copy_(torch.tensor([[0.0], [1.0]]))
+            to_two.bias.zero_()
+        to_two.requires_grad_(False)
+        model = nn.Sequential(model, to_two).eval()
+        logger.info("Single-logit model: added fixed layer z -> [0, z] "
+                    "(softmax malignant prob == sigmoid(z))")
+        with torch.no_grad():
+            out = model(torch.zeros(1, 3, args.img_size, args.img_size))
     if out.shape != (1, NUM_CLASSES):
         sys.exit(f"Model output shape {tuple(out.shape)} != (1, {NUM_CLASSES}). "
                  f"Backend expects 2 logits: [benign, malignant].")
