@@ -10,3 +10,4 @@ __pycache__/
 !airflow/training/fallback/
 !airflow/training/fallback/*.pt
 architecture.html
+eval_results.csv
