@@ -91,6 +91,19 @@ main {
 .card h3 { font-size: 1rem; color: var(--teal-dark); margin-bottom: 1rem; }
 .card-desc { color: var(--gray-500); font-size: 0.9rem; margin-bottom: 1.5rem; }
 
+/* ── LinkedIn link under the byline ──────────────────────── */
+.header-link {
+    display: inline-block;
+    margin-top: 0.35rem;
+    color: var(--white);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    opacity: 0.9;
+}
+.header-link:hover { opacity: 1; }
+
 /* ── Photo tips ───────────────────────────────────────────── */
 .photo-tips {
     background: var(--gray-100);
